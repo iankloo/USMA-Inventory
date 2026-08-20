@@ -1,0 +1,5 @@
+node_modules/
+apps/api/dist/
+apps/api/.env
+.DS_Store
+.gstack/

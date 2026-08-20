@@ -1,0 +1,26 @@
+{
+  "name": "@skeet-inventory/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test test/**/*.test.ts",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy"
+  },
+  "dependencies": {
+    "fastify": "^5.2.1",
+    "jose": "^6.0.10",
+    "@prisma/client": "^6.3.1",
+    "zod": "^3.24.1",
+    "skeet-inventory-worker": "file:../worker"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.7",
+    "prisma": "^6.3.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

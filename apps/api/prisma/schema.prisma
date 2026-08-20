@@ -1,0 +1,258 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  OPERATOR
+  ACCOUNT_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+
+enum GunLifecycle {
+  ACTIVE
+  ARCHIVED
+}
+
+enum GunState {
+  STORED
+  CHECKED_OUT
+  REPAIR
+}
+
+enum CustodyKind {
+  CHECKOUT
+  REPAIR
+}
+
+enum CustodyStatus {
+  ACTIVE
+  RETURNED
+}
+
+enum AuditStatus {
+  DRAFT
+  IN_PROGRESS
+  PHYSICAL_FINALIZED
+  COMPLETE
+}
+
+enum AuditItemStatus {
+  UNRESOLVED
+  SCANNED
+  REPAIR_VERIFIED
+  EXCEPTION
+}
+
+enum ScanResult {
+  MATCHED
+  DUPLICATE
+  UNEXPECTED
+  ARCHIVED
+  INVALID
+}
+
+enum ReconciliationResult {
+  MATCHED
+  MISSING_FROM_EXTERNAL
+  UNKNOWN_EXTERNAL
+  DUPLICATE_EXTERNAL
+}
+
+model User {
+  id              String           @id @default(uuid()) @db.Uuid
+  cognitoSubject   String           @unique
+  email           String           @unique
+  displayName      String
+  role            UserRole         @default(OPERATOR)
+  status          UserStatus       @default(ACTIVE)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  assignments     CadetAssignment[]
+  custodyOpened   CustodyRecord[]  @relation("CustodyOpenedBy")
+  custodyClosed   CustodyRecord[]  @relation("CustodyClosedBy")
+  auditsStarted   InventoryAudit[] @relation("AuditStartedBy")
+  events          ActivityEvent[]
+  auditItems      AuditItem[]
+  auditScans      AuditScan[]
+  reconciliations Reconciliation[]
+}
+
+model StorageLocation {
+  id        String   @id @default(uuid()) @db.Uuid
+  safe      Int
+  slot      Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  guns           Gun[] @relation("GunLocation")
+  lastStoredGuns Gun[] @relation("GunLastStoredLocation")
+
+  @@unique([safe, slot])
+  @@index([safe])
+}
+
+model Gun {
+  id              String           @id @default(uuid()) @db.Uuid
+  serialNumber    String           @unique
+  lifecycle       GunLifecycle      @default(ACTIVE)
+  state           GunState          @default(STORED)
+  model           String
+  gauge           String?
+  owner           String?
+  /// A legacy-reported safe with no known slot. Complete current locations use StorageLocation.
+  reportedSafe    Int?
+  barrelLength    Decimal?         @db.Decimal(6, 2)
+  lengthOfPull    Decimal?         @db.Decimal(6, 2)
+  handedness      String?
+  type            String?
+  highRib        Boolean?
+  locationId          String?          @db.Uuid
+  lastStoredLocationId String?          @db.Uuid
+  location            StorageLocation? @relation("GunLocation", fields: [locationId], references: [id])
+  lastStoredLocation  StorageLocation? @relation("GunLastStoredLocation", fields: [lastStoredLocationId], references: [id])
+  assignments     CadetAssignment[]
+  custody         CustodyRecord[]
+  auditItems      AuditItem[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([lifecycle, state])
+  @@index([model])
+}
+
+model CadetAssignment {
+  id         String    @id @default(uuid()) @db.Uuid
+  gunId      String    @db.Uuid
+  cadetName  String
+  cadetId    String?
+  startsAt   DateTime  @default(now())
+  endsAt     DateTime?
+  createdById String   @db.Uuid
+  gun        Gun       @relation(fields: [gunId], references: [id])
+  createdBy  User      @relation(fields: [createdById], references: [id])
+  createdAt  DateTime  @default(now())
+
+  @@index([gunId, endsAt])
+}
+
+model CustodyRecord {
+  id             String        @id @default(uuid()) @db.Uuid
+  gunId          String        @db.Uuid
+  kind           CustodyKind
+  status         CustodyStatus @default(ACTIVE)
+  personName     String?
+  personEmail    String?
+  vendor         String?
+  reason         String?
+  notes          String?
+  checkedOutAt   DateTime      @default(now())
+  expectedReturn DateTime?
+  returnedAt     DateTime?
+  openedById     String        @db.Uuid
+  closedById     String?       @db.Uuid
+  gun            Gun           @relation(fields: [gunId], references: [id])
+  openedBy       User          @relation("CustodyOpenedBy", fields: [openedById], references: [id])
+  closedBy       User?         @relation("CustodyClosedBy", fields: [closedById], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([gunId, status])
+}
+
+model InventoryAudit {
+  id           String      @id @default(uuid()) @db.Uuid
+  name         String
+  /// Lowercase name with runs of whitespace collapsed; used for case-insensitive uniqueness.
+  nameKey      String      @unique
+  status       AuditStatus @default(DRAFT)
+  startedAt    DateTime    @default(now())
+  physicalFinalizedAt DateTime?
+  completedAt  DateTime?
+  startedById  String      @db.Uuid
+  startedBy    User        @relation("AuditStartedBy", fields: [startedById], references: [id])
+  items        AuditItem[]
+  scans        AuditScan[]
+  reconciliation Reconciliation?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([status, startedAt])
+}
+
+model AuditItem {
+  id          String          @id @default(uuid()) @db.Uuid
+  auditId     String          @db.Uuid
+  gunId       String          @db.Uuid
+  serialNumber String
+  status      AuditItemStatus @default(UNRESOLVED)
+  resolvedAt  DateTime?
+  resolvedById String?        @db.Uuid
+  resolutionNote String?
+  audit       InventoryAudit  @relation(fields: [auditId], references: [id])
+  gun         Gun             @relation(fields: [gunId], references: [id])
+  resolvedBy  User?           @relation(fields: [resolvedById], references: [id])
+
+  @@unique([auditId, gunId])
+  @@index([auditId, status])
+}
+
+model AuditScan {
+  id           String     @id @default(uuid()) @db.Uuid
+  auditId      String     @db.Uuid
+  serialNumber String
+  result       ScanResult
+  scannedAt    DateTime   @default(now())
+  scannedById  String     @db.Uuid
+  audit         InventoryAudit @relation(fields: [auditId], references: [id])
+  scannedBy     User       @relation(fields: [scannedById], references: [id])
+
+  @@index([auditId, serialNumber])
+}
+
+model Reconciliation {
+  id             String   @id @default(uuid()) @db.Uuid
+  auditId        String   @unique @db.Uuid
+  sourceName     String
+  reviewedAt     DateTime @default(now())
+  reviewedById   String   @db.Uuid
+  audit           InventoryAudit @relation(fields: [auditId], references: [id])
+  reviewedBy      User     @relation(fields: [reviewedById], references: [id])
+  serials         ReconciliationSerial[]
+  createdAt       DateTime @default(now())
+}
+
+model ReconciliationSerial {
+  id              String               @id @default(uuid()) @db.Uuid
+  reconciliationId String              @db.Uuid
+  serialNumber    String
+  result          ReconciliationResult
+  reconciliation  Reconciliation      @relation(fields: [reconciliationId], references: [id])
+
+  @@unique([reconciliationId, serialNumber])
+  @@index([reconciliationId, result])
+}
+
+model ActivityEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String   @db.Uuid
+  action     String
+  entityType String
+  entityId   String
+  reason     String?
+  beforeJson Json?
+  afterJson  Json?
+  createdAt  DateTime @default(now())
+  actor      User     @relation(fields: [actorId], references: [id])
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorId, createdAt])
+}
