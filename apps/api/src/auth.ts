@@ -34,7 +34,14 @@ export function createAuthenticator(prisma: PrismaClient): Authenticate {
     if (!authorization?.startsWith("Bearer ")) throw new Error("AUTHENTICATION_REQUIRED");
     if (!jwks || !issuer || !audience) throw new Error("AUTHENTICATION_NOT_CONFIGURED");
     const token = authorization.slice("Bearer ".length);
-    const verified = await jwtVerify(token, jwks, { issuer, audience });
+    // Cognito access tokens identify the application through `client_id`, not
+    // the ID-token `aud` claim. The web client intentionally sends an access
+    // token, so validate its token type and client ID after signature/issuer
+    // verification instead of asking jose to require an `aud` claim.
+    const verified = await jwtVerify(token, jwks, { issuer });
+    if (verified.payload.token_use !== "access" || verified.payload.client_id !== audience) {
+      throw new Error("INVALID_IDENTITY");
+    }
     subject = typeof verified.payload.sub === "string" ? verified.payload.sub : undefined;
     email = typeof verified.payload.email === "string" ? verified.payload.email : undefined;
     if (!subject) throw new Error("INVALID_IDENTITY");
