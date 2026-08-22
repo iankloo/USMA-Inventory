@@ -70,3 +70,10 @@ test("stored location conflicts map to a stable conflict", () => {
   assert.equal(normalized.statusCode, 409);
   assert.equal(normalized.code, "LOCATION_OCCUPIED");
 });
+
+test("expired Cognito access tokens require a new sign-in instead of returning a server error", () => {
+  const error = Object.assign(new Error("JWT expired"), { code: "ERR_JWT_EXPIRED" });
+  const normalized = asHttpError(error);
+  assert.equal(normalized.statusCode, 401);
+  assert.equal(normalized.code, "SESSION_EXPIRED");
+});

@@ -8,6 +8,13 @@ export class HttpError extends Error {
 
 export function asHttpError(error: unknown): HttpError {
   if (error instanceof HttpError) return error;
+  const code = error instanceof Error ? (error as Error & { code?: unknown }).code : undefined;
+  if (code === "ERR_JWT_EXPIRED") {
+    return new HttpError(401, "Your session has expired. Please sign in again.", "SESSION_EXPIRED");
+  }
+  if (typeof code === "string" && code.startsWith("ERR_J")) {
+    return new HttpError(401, "Your sign-in token is invalid. Please sign in again.", "INVALID_IDENTITY");
+  }
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
     const target = Array.isArray(error.meta?.target) ? error.meta.target.join(",") : String(error.meta?.target ?? "");
     if (target.includes("nameKey")) return new HttpError(409, "An audit with this name already exists", "AUDIT_NAME_EXISTS");
