@@ -1,4 +1,4 @@
-import { beginCognitoSignIn, getAccessToken } from "./auth";
+import { beginCognitoSignIn, getAccessToken, signOutCognito } from "./auth";
 import type {
   ApiClient,
   ActivityEvent,
@@ -32,6 +32,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   if (!response.ok) {
+    if (response.status === 401) {
+      signOutCognito();
+      window.location.reload();
+      throw new Error("Your session has expired. Please sign in again.");
+    }
     const body = await response.text().catch(() => "");
     let message = body;
     try {
