@@ -60,7 +60,21 @@ const localDevSession = isLocalApiDevSession(import.meta.env);
 const initialAuthState = getInitialAuthState(
   import.meta.env,
   Boolean(getAccessToken()),
+  new URLSearchParams(window.location.search).has("code"),
 );
+
+const MAIN_NAV_PAGES = ["inventory", "archived", "audits", "people", "history"] as const;
+type MainNavPage = (typeof MAIN_NAV_PAGES)[number];
+const LAST_MAIN_NAV_PAGE_KEY = "skeet-inventory:last-main-nav-page";
+
+function initialMainNavPage(): MainNavPage {
+  try {
+    const savedPage = window.sessionStorage.getItem(LAST_MAIN_NAV_PAGE_KEY);
+    return MAIN_NAV_PAGES.includes(savedPage as MainNavPage) ? savedPage as MainNavPage : "inventory";
+  } catch {
+    return "inventory";
+  }
+}
 
 const statusTone: Record<Gun["status"], string> = {
   Stored: "green",
@@ -122,8 +136,8 @@ function Shell({
   currentUserLoading = false,
 }: {
   children: React.ReactNode;
-  page: string;
-  onPageChange: (p: string) => void;
+  page: MainNavPage;
+  onPageChange: (p: MainNavPage) => void;
   localDevSession?: boolean;
   currentUser: CurrentUser | null;
   currentUserLoading?: boolean;
@@ -136,7 +150,7 @@ function Shell({
     { id: "audits", label: "Audits", icon: ClipboardCheck },
     { id: "people", label: "People", icon: UsersRound },
     { id: "history", label: "Activity history", icon: History },
-  ];
+  ] as const;
   return (
     <div className="app-shell">
       <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>
@@ -2446,7 +2460,7 @@ function App() {
   const [authChecking, setAuthChecking] = useState(initialAuthState.checking);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [currentUserLoading, setCurrentUserLoading] = useState(true);
-  const [page, setPage] = useState("inventory");
+  const [page, setPage] = useState<MainNavPage>(initialMainNavPage);
   const [selectedGun, setSelectedGun] = useState<Gun | null>(null);
   const [inventoryRefresh, setInventoryRefresh] = useState(0);
   const [audit, setAudit] = useState<AuditSummary | null>(null);
@@ -2483,6 +2497,13 @@ function App() {
       .finally(() => { if (!cancelled) setCurrentUserLoading(false); });
     return () => { cancelled = true; };
   }, [authenticated]);
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem(LAST_MAIN_NAV_PAGE_KEY, page);
+    } catch {
+      // Storage can be unavailable in private or restricted browser contexts.
+    }
+  }, [page]);
   if (authChecking)
     return (
       <div className="signin-page">

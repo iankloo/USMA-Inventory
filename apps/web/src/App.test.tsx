@@ -1,12 +1,27 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import App, { formatGunLocation } from './App'
+
+afterEach(() => window.sessionStorage.clear())
 
 describe('armory workflow', () => {
   it('labels stored guns without a safe or slot as unassigned', () => {
     expect(formatGunLocation({ status: 'Stored' } as Parameters<typeof formatGunLocation>[0])).toBe('Location unassigned')
     expect(formatGunLocation({ status: 'Stored', reportedSafe: 7 } as Parameters<typeof formatGunLocation>[0])).toBe('Safe 7 · Slot unknown')
+  })
+
+  it('restores the last main navigation page after a reload', async () => {
+    const user = userEvent.setup()
+    const firstRender = render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: /audits/i }))
+    expect(await screen.findByRole('heading', { name: /^audits$/i })).toBeInTheDocument()
+
+    firstRender.unmount()
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: /^audits$/i })).toBeInTheDocument()
   })
 
   it('derives inventory totals from loaded guns and applies register filters', async () => {

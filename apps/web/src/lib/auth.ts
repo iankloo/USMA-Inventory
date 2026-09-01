@@ -30,13 +30,17 @@ export function isLocalApiDevSession(env: RuntimeAuthEnv): boolean {
 export function getInitialAuthState(
   env: RuntimeAuthEnv,
   hasAccessToken: boolean,
+  hasCognitoCallbackCode = false,
 ): { authenticated: boolean; checking: boolean } {
   const demoMode = env.VITE_DEMO_MODE !== "false";
   const localDevSession = isLocalApiDevSession(env);
   return {
     authenticated:
       localDevSession || (demoMode && env.VITE_REQUIRE_AUTH !== "true"),
-    checking: !demoMode && !localDevSession && hasAccessToken,
+    checking:
+      !demoMode &&
+      !localDevSession &&
+      (hasAccessToken || hasCognitoCallbackCode),
   };
 }
 
