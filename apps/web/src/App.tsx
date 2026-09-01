@@ -2222,6 +2222,11 @@ function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
     setError("");
     try {
       await client.signIn(email, password);
+      // Hosted Cognito navigation has started. Do not mark this React session
+      // authenticated yet: doing so triggers protected API requests before the
+      // callback has exchanged its authorization code for an access token.
+      // Those 401s clear the PKCE verifier and cancel the sign-in flow.
+      if (hostedSignIn) return;
       onSignedIn();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to sign in");
