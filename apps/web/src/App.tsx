@@ -2142,7 +2142,7 @@ function StartAuditModal({ onClose, onSave }: { onClose: () => void; onSave: (na
   );
 }
 
-function Audits({ onOpen, onStart }: { onOpen: (audit: AuditSummary) => void; onStart: () => void }) {
+function Audits({ onOpen, onStart }: { onOpen: (audit: AuditSummary) => Promise<void>; onStart: () => void }) {
   const [audits, setAudits] = useState<AuditSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<AuditSummary["status"] | "All">("All");
@@ -2196,7 +2196,7 @@ function Audits({ onOpen, onStart }: { onOpen: (audit: AuditSummary) => void; on
         ) : (
           <>
             <div className="audit-row audit-row-header"><span>Audit</span><span>Progress</span><span>Status</span><span>Reconciliation</span><span /></div>
-            {filteredAudits.map((audit) => <button className="audit-row" key={audit.id} onClick={() => onOpen(audit)}>
+            {filteredAudits.map((audit) => <button className="audit-row" key={audit.id} onClick={() => { void onOpen(audit); }}>
               <div><strong>{audit.label}</strong><small>Started by {audit.startedBy || "Unknown"} · {audit.startedAt}</small></div>
               <div className="audit-row-progress"><span>{audit.resolved} / {audit.expected}</span><div className="mini-progress"><i style={{ width: `${audit.expected ? (audit.resolved / audit.expected) * 100 : 0}%` }} /></div></div>
               <Badge tone={audit.status === "Complete" ? "green" : "orange"}>{audit.status}</Badge>
@@ -2324,6 +2324,12 @@ function App() {
     setAudit(await client.getAudit(created.id));
     setShowStartAudit(false);
   };
+  const openAudit = async (summary: AuditSummary) => {
+    // The list endpoint is deliberately a compact summary. Always hydrate the
+    // selected audit from its detail endpoint so persisted scan history and
+    // unresolved snapshot items are available after returning to this page.
+    setAudit(await client.getAudit(summary.id));
+  };
   useEffect(() => {
     if (demoMode || localDevSession) return;
     completeCognitoCallback()
@@ -2375,7 +2381,7 @@ function App() {
       ) : page === "archived" ? (
         <ArchivedGuns onSelectGun={setSelectedGun} refreshToken={inventoryRefresh} />
       ) : page === "audits" ? (
-        <Audits onOpen={setAudit} onStart={() => setShowStartAudit(true)} />
+        <Audits onOpen={openAudit} onStart={() => setShowStartAudit(true)} />
       ) : page === "history" ? (
         <ActivityHistory onSelectGun={async (serial) => setSelectedGun(await client.getGun(serial))} />
       ) : (

@@ -195,6 +195,47 @@ describe('armory workflow', () => {
     expect(screen.queryByText('Choose a reason for this unresolved gun.')).not.toBeInTheDocument()
   })
 
+  it('hydrates a reopened audit so persisted scans and exceptions remain available', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: /start monthly audit/i }))
+    await user.type(screen.getByRole('textbox', { name: /audit name/i }), 'Reopen audit test')
+    await user.click(screen.getByRole('button', { name: /^start audit$/i }))
+    const scan = await screen.findByRole('textbox', { name: /scan qr code/i })
+    await user.type(scan, 'WP-24-00187')
+    await user.click(screen.getByRole('button', { name: /^scan$/i }))
+    await screen.findByText(/wp-24-00187 verified in current inventory/i)
+
+    await user.click(screen.getByRole('button', { name: /all audits/i }))
+    await user.click(screen.getByRole('button', { name: /^audits$/i }))
+    await user.click(await screen.findByRole('button', { name: /reopen audit test/i }))
+
+    expect(await screen.findByText('WP-24-00187')).toBeInTheDocument()
+    const exceptions = screen.getByRole('button', { name: /exceptions/i })
+    expect(exceptions).toBeEnabled()
+    await user.click(exceptions)
+    expect(screen.getByRole('combobox', { name: /unresolved gun/i })).toBeInTheDocument()
+  })
+
+  it('enables PDF reconciliation after the physical count is finalized', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: /start monthly audit/i }))
+    await user.type(screen.getByRole('textbox', { name: /audit name/i }), 'PDF reconciliation test')
+    await user.click(screen.getByRole('button', { name: /^start audit$/i }))
+    const scan = await screen.findByRole('textbox', { name: /scan qr code/i })
+    for (const serial of ['WP-24-00187', 'WP-24-00204', 'WP-23-00091', 'WP-24-00312', 'WP-22-00106']) {
+      await user.type(scan, serial)
+      await user.click(screen.getByRole('button', { name: /^scan$/i }))
+      await screen.findByText(new RegExp(`${serial} verified in current inventory`, 'i'))
+    }
+    await user.click(screen.getByRole('button', { name: /finalize physical count/i }))
+    const upload = await screen.findByLabelText(/upload pdf report/i)
+    await waitFor(() => expect(upload).toBeEnabled())
+    await user.upload(upload, new File(['test PDF'], 'monitoring-report.pdf', { type: 'application/pdf' }))
+    expect(await screen.findByRole('textbox', { name: /reviewed serial numbers/i })).toBeInTheDocument()
+  })
+
   it('archives a gun with a justification and exposes it in the dedicated archived area', async () => {
     const user = userEvent.setup()
     render(<App />)
