@@ -113,6 +113,15 @@ The app client must retain these OAuth settings:
 - Every approved temporary resource gets a named owner, purpose, and cleanup check before it is created.
 - After deleting anything, report exactly what was removed and whether it is recoverable.
 
-## Current access limitation
+## Verified production access
 
-The original one-off SSH key for the current production instance was removed before a durable replacement access path was established. Do not attempt to solve that by silently creating a clone. First establish an approved recovery plan that includes the two-key design above, then document the resulting access fingerprints in the private operations record.
+The following credentials were tested independently against the current production instance on September 1, 2026. Their private material is stored locally and is not committed to this repository:
+
+| Purpose | Local private-key path | Fingerprint |
+| --- | --- | --- |
+| Administrative access | `/Users/kloo/.ssh/arms-inventory-admin` | `SHA256:2G33PFXGE+n+Ha9/RfPnLmCQW6Q5yL841nmC8JiNoEo` |
+| Deployment access | `/Users/kloo/.ssh/arms-inventory-deploy` | `SHA256:J5w6QHcwBCsL4mFhSEyo2Fqpmtu0E0D1S3tRdsUTM+E` |
+
+The Lightsail browser SSH terminal is the independent emergency recovery route. Open the instance's **Connect** tab in the Lightsail console and select **Connect using SSH**. It was tested successfully on the current server.
+
+When rotating either key, add and test the replacement first, then remove the old public key only after both the replacement and the browser SSH route have been verified.
