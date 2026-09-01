@@ -3,7 +3,7 @@ import { Prisma, PrismaClient, type AuditItemStatus, type AuditStatus, type GunL
 import { createAuthenticator, type Actor, type Authenticate } from "./auth.js";
 import { asHttpError, HttpError } from "./errors.js";
 import {
-  assignmentSchema, auditNameKey, auditStartSchema, checkoutSchema, csvEscape, exceptionSchema, gunInputSchema,
+  assignmentSchema, auditNameKey, auditStartSchema, checkoutSchema, csvEscape, exceptionSchema, fitterAssignmentSchema, gunInputSchema,
   archiveSchema, gunDetailsUpdateSchema, locationSchema, normalizeAuditName, normalizeSerial, parseOrThrow, reconciliationSchema, repairSchema, returnLocationSchema, scanSchema
 } from "./domain.js";
 import { userCreateSchema } from "./domain.js";
@@ -66,6 +66,7 @@ function gunDetailsSnapshot(gun: any) {
     barrelLength: gun.barrelLength?.toString() ?? null,
     lengthOfPull: gun.lengthOfPull?.toString() ?? null,
     handedness: gun.handedness,
+    adjustableComb: gun.adjustableComb,
     type: gun.type,
     highRib: gun.highRib
   };
@@ -340,6 +341,7 @@ export async function createApp(options: AppOptions): Promise<FastifyInstance> {
             barrelLength: row.barrelLength === undefined ? undefined : Number(row.barrelLength),
             lengthOfPull: row.lengthOfPull === undefined ? undefined : Number(row.lengthOfPull),
             handedness: row.handedness === undefined ? undefined : row.handedness.toUpperCase(),
+            adjustableComb: row.adjustableComb,
             type: row.type === undefined ? undefined : row.type.toUpperCase(),
             highRib: row.highRib,
             reportedSafe: row.slot === undefined ? row.safe ?? (row.location === undefined ? prior?.reportedSafe ?? null : null) : null,
@@ -349,7 +351,7 @@ export async function createApp(options: AppOptions): Promise<FastifyInstance> {
           };
           const gun = prior
             ? await tx.gun.update({ where: { id: prior.id }, data })
-            : await tx.gun.create({ data: { serialNumber: row.serialNumber, model: row.model!, gauge: row.gauge, owner: row.owner, reportedSafe: data.reportedSafe, barrelLength: data.barrelLength, lengthOfPull: data.lengthOfPull, handedness: data.handedness, type: data.type, highRib: row.highRib, state: data.state ?? "STORED", locationId, lastStoredLocationId } });
+            : await tx.gun.create({ data: { serialNumber: row.serialNumber, model: row.model!, gauge: row.gauge, owner: row.owner, reportedSafe: data.reportedSafe, barrelLength: data.barrelLength, lengthOfPull: data.lengthOfPull, handedness: data.handedness, adjustableComb: data.adjustableComb, type: data.type, highRib: row.highRib, state: data.state ?? "STORED", locationId, lastStoredLocationId } });
           const action = prior ? "GUN_IMPORT_UPDATED" : "GUN_IMPORT_CREATED";
           await event(tx, actor.id, action, "Gun", gun.id, prior ? serializeGun(prior) : undefined, serializeGun(gun), "Spreadsheet import");
           if (row.assignee) {
@@ -403,7 +405,7 @@ export async function createApp(options: AppOptions): Promise<FastifyInstance> {
           const location = await tx.storageLocation.upsert({ where: { safe_slot: { safe: input.safe, slot: input.slot } }, create: { safe: input.safe, slot: input.slot }, update: {} });
           locationId = location.id;
         }
-        const created = await tx.gun.create({ data: { serialNumber, model: input.model, gauge: input.gauge, owner: input.owner, reportedSafe: input.slot === undefined ? input.safe : null, barrelLength: input.barrelLength, lengthOfPull: input.lengthOfPull, handedness: input.handedness, type: input.type, highRib: input.highRib, locationId, lastStoredLocationId: locationId } });
+        const created = await tx.gun.create({ data: { serialNumber, model: input.model, gauge: input.gauge, owner: input.owner, reportedSafe: input.slot === undefined ? input.safe : null, barrelLength: input.barrelLength, lengthOfPull: input.lengthOfPull, handedness: input.handedness, adjustableComb: input.adjustableComb, type: input.type, highRib: input.highRib, locationId, lastStoredLocationId: locationId } });
         await event(tx, actor.id, "GUN_CREATED", "Gun", created.id, undefined, serializeGun(created));
         return created;
       });
@@ -523,6 +525,27 @@ export async function createApp(options: AppOptions): Promise<FastifyInstance> {
         return created;
       });
       return reply.code(201).send(assignment);
+    } catch (error) { return routeError(reply, error); }
+  });
+
+  app.post("/api/guns/:serial/fitter-assignment", async (request, reply) => {
+    try {
+      const actor = requireActor(request);
+      const input = parseOrThrow(fitterAssignmentSchema, request.body);
+      const serialNumber = normalizeSerial((request.params as { serial: string }).serial);
+      const updated = await options.prisma.$transaction(async (tx) => {
+        const gun = await tx.gun.findUnique({ where: { serialNumber } });
+        if (!gun) throw new HttpError(404, "Gun not found", "GUN_NOT_FOUND");
+        if (gun.lifecycle === "ARCHIVED" || gun.state !== "STORED") throw new HttpError(409, "Only active stored guns can be assigned from Gun Fitter", "GUN_NOT_ASSIGNABLE");
+        const activeAssignment = await tx.cadetAssignment.findFirst({ where: { gunId: gun.id, endsAt: null } });
+        if (activeAssignment) throw new HttpError(409, "This gun is already assigned; refresh Gun Fitter and try again", "GUN_ALREADY_ASSIGNED");
+        const location = await tx.storageLocation.upsert({ where: { safe_slot: { safe: input.safe, slot: input.slot } }, create: { safe: input.safe, slot: input.slot }, update: {} });
+        await tx.gun.update({ where: { id: gun.id }, data: { locationId: location.id, lastStoredLocationId: location.id } });
+        const assignment = await tx.cadetAssignment.create({ data: { gunId: gun.id, cadetName: input.cadetName, cadetId: input.cadetId, createdById: actor.id } });
+        await event(tx, actor.id, "GUN_FITTER_ASSIGNED", "Gun", gun.id, { locationId: gun.locationId }, { cadetName: assignment.cadetName, locationId: location.id }, "Assigned from Gun Fitter");
+        return tx.gun.findUniqueOrThrow({ where: { id: gun.id }, include: { location: true, lastStoredLocation: true, assignments: { where: { endsAt: null }, take: 1 }, custody: { where: { status: "ACTIVE" }, take: 1 } } });
+      });
+      return reply.code(201).send(serializeGun(updated));
     } catch (error) { return routeError(reply, error); }
   });
 
