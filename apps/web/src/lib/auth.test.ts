@@ -54,4 +54,14 @@ describe("local API auth mode", () => {
       ),
     ).toEqual({ authenticated: false, checking: false });
   });
+
+  it("keeps the sign-in screen hidden while exchanging a Cognito callback code", () => {
+    expect(
+      getInitialAuthState(
+        { DEV: false, VITE_DEMO_MODE: "false" },
+        false,
+        true,
+      ),
+    ).toEqual({ authenticated: false, checking: true });
+  });
 });
