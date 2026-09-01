@@ -63,6 +63,7 @@ All routes except `/healthz` require `Authorization: Bearer <Cognito access toke
 | GET    | `/api/guns/:serial/history`                   | —                                                                | actor-attributed activity events                                                                     |
 | POST   | `/api/guns/:serial/location`                  | `{ safe, slot }`                                                 | updated gun                                                                                          |
 | POST   | `/api/guns/:serial/assignment`                | `{ cadetName, cadetId? }`                                        | assignment                                                                                           |
+| POST   | `/api/guns/:serial/fitter-assignment`         | `{ cadetName, cadetId?, safe, slot }`                           | assignment and updated gun                                                                           |
 | POST   | `/api/guns/:serial/checkout`                  | `{ personName, personEmail?, reason?, notes?, expectedReturn? }` | custody record                                                                                       |
 | POST   | `/api/guns/:serial/repair`                    | `{ vendor, reason, notes?, expectedReturn? }`                    | custody record                                                                                       |
 | POST   | `/api/audits`                                 | `{ name }`                                                       | audit with `itemCount`                                                                               |
@@ -78,7 +79,7 @@ All routes except `/healthz` require `Authorization: Bearer <Cognito access toke
 
 ### JSON shapes
 
-The backend's gun row uses `serialNumber`, `state` (`STORED`, `CHECKED_OUT`, `REPAIR`), `lifecycle`, nested `location`, `assignments`, and `custody`. The client normalizes this into its view model: `serial`, `status`, optional `safe`, `slot`, `assignedCadet`, `holder`, and `repairVendor`.
+The backend's gun row uses `serialNumber`, `state` (`STORED`, `CHECKED_OUT`, `REPAIR`), `lifecycle`, nested `location`, `assignments`, and `custody`. It also carries fitting metadata including `handedness`, `lengthOfPull`, and optional `adjustableComb`. The client normalizes this into its view model: `serial`, `status`, optional `safe`, `slot`, `assignedCadet`, `holder`, and `repairVendor`.
 
 `AuditSummary` includes `id`, `label`, `startedAt`, `startedBy`, `expected`, `resolved`, `scanned`, `repairVerified`, `exceptions`, `status`, and optional `reconciliation`. The server remains the source of truth for counts and lifecycle transitions; the demo adapter only approximates those updates.
 
@@ -93,3 +94,4 @@ The backend's gun row uses `serialNumber`, `state` (`STORED`, `CHECKED_OUT`, `RE
 - Gun detail location, cadet assignment, checkout, and repair actions call the corresponding actor-attributed API routes and refresh the live row. Specification editing and bulk import remain visibly marked as not available in V1 because no corresponding API routes exist.
 - Inventory totals and status counts are derived from the rows returned by `GET /api/guns`; the UI does not assume a 200-gun register. The audit list loads persisted rows from `GET /api/audits`; an empty response produces a truthful empty state, and starting an audit creates then reloads its live snapshot with `POST /api/audits` and `GET /api/audits/:id`.
 - CSV/XLSX imports are previewed before commit. The browser sends the selected file bytes to the API, presents validation issues and create/update counts, then sends the same file to the commit route only after a valid preview.
+- Gun Fitter lists only unassigned stored guns. It begins with Beretta-owned guns and can filter by ownership, handedness, length of pull, and adjustable comb. Its assignment action accepts only currently available safe/slot pairs; the API remains authoritative if a competing assignment claims a slot first.

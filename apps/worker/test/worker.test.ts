@@ -27,6 +27,23 @@ test("validates CSV fields, location ranges, and explicit create/update decision
   assert.ok(invalid.issues.some((issue) => issue.code === "incomplete-location"));
 });
 
+test("imports adjustable-comb values and reports invalid values", () => {
+  const valid = validateCsvGunImport([
+    "Serial Number,Model,Adjustable Comb",
+    "COMB-YES,Beretta 694,yes",
+    "COMB-NO,Beretta 686,false",
+  ].join("\n"));
+  assert.equal(valid.valid, true);
+  assert.deepEqual(valid.rows.map((row) => [row.serialNumber, row.adjustableComb]), [
+    ["COMBYES", true],
+    ["COMBNO", false],
+  ]);
+
+  const invalid = validateCsvGunImport("serial,model,adjustable_comb\nCOMB-BAD,Beretta,perhaps");
+  assert.equal(invalid.valid, false);
+  assert.ok(invalid.issues.some((issue) => issue.field === "adjustableComb" && issue.code === "invalid-boolean"));
+});
+
 test("prepares legacy fields without inventing unknown values and resolves occupied slots deterministically", () => {
   const prepared = prepareLegacyInventory([
     { serialNumber: "R74361S", model: "Beretta", modelType: "Trap 1", owner: "Beretta", safe: 6, slot: 23, "Asset Tag": "discard-me" },

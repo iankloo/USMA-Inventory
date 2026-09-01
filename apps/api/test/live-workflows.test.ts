@@ -131,6 +131,55 @@ test("gun detail updates preserve identity and location while recording before a
   await app.close();
 });
 
+test("Gun Fitter assigns an available stored gun, records its location, and writes an event", async () => {
+  const gun = {
+    id: "00000000-0000-0000-0000-000000000030", serialNumber: "FITTER-001", lifecycle: "ACTIVE", state: "STORED",
+    locationId: "00000000-0000-0000-0000-000000000031",
+  };
+  const events: any[] = [];
+  let locationUpdate: any;
+  let assignmentData: any;
+  const updated = { ...gun, locationId: "00000000-0000-0000-0000-000000000032", location: { safe: 6, slot: 22 }, lastStoredLocation: { safe: 6, slot: 22 }, assignments: [{ cadetName: "Cadet Fitter", endsAt: null }], custody: [] };
+  const tx = {
+    gun: {
+      findUnique: async () => gun,
+      update: async ({ data }: any) => { locationUpdate = data; return { ...gun, ...data }; },
+      findUniqueOrThrow: async () => updated,
+    },
+    cadetAssignment: {
+      findFirst: async () => null,
+      create: async ({ data }: any) => { assignmentData = data; return { id: "assignment-fitter", ...data }; },
+    },
+    storageLocation: { upsert: async ({ create }: any) => ({ id: updated.locationId, ...create }) },
+    activityEvent: { create: async ({ data }: any) => { events.push(data); return data; } },
+  };
+  const app = await createApp({ prisma: { $transaction: async (callback: any) => callback(tx) } as any, authenticate: authenticated() });
+  const response = await app.inject({ method: "POST", url: "/api/guns/FITTER-001/fitter-assignment", payload: { cadetName: "Cadet Fitter", safe: 6, slot: 22 } });
+  assert.equal(response.statusCode, 201);
+  assert.equal(response.json().location.safe, 6);
+  assert.deepEqual(locationUpdate, { locationId: updated.locationId, lastStoredLocationId: updated.locationId });
+  assert.deepEqual(assignmentData, { gunId: gun.id, cadetName: "Cadet Fitter", cadetId: undefined, createdById: actor.id });
+  assert.equal(events[0].action, "GUN_FITTER_ASSIGNED");
+  await app.close();
+});
+
+test("Gun Fitter rejects nonassignable and already-assigned guns", async () => {
+  for (const [gun, activeAssignment, expectedError] of [
+    [{ id: "gun-repair", serialNumber: "FITTER-REPAIR", lifecycle: "ACTIVE", state: "REPAIR" }, null, "GUN_NOT_ASSIGNABLE"],
+    [{ id: "gun-assigned", serialNumber: "FITTER-ASSIGNED", lifecycle: "ACTIVE", state: "STORED" }, { id: "active" }, "GUN_ALREADY_ASSIGNED"],
+  ] as const) {
+    const tx = {
+      gun: { findUnique: async () => gun },
+      cadetAssignment: { findFirst: async () => activeAssignment },
+    };
+    const app = await createApp({ prisma: { $transaction: async (callback: any) => callback(tx) } as any, authenticate: authenticated() });
+    const response = await app.inject({ method: "POST", url: `/api/guns/${gun.serialNumber}/fitter-assignment`, payload: { cadetName: "Cadet Fitter", safe: 6, slot: 22 } });
+    assert.equal(response.statusCode, 409);
+    assert.equal(response.json().error, expectedError);
+    await app.close();
+  }
+});
+
 test("global activity returns newest events with related gun metadata and filters", async () => {
   let gunLookups = 0;
   const prisma = {

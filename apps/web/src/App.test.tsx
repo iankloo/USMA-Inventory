@@ -78,19 +78,20 @@ describe('armory workflow', () => {
     expect(screen.getByText('WP-22-00106')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Show all active guns' }))
     await user.click(screen.getByRole('button', { name: /filter inventory to safe 6, 1 guns/i }))
-    await user.click(screen.getByRole('button', { name: 'Assigned', pressed: false }))
+    await user.click(screen.getByRole('button', { name: 'Unassigned', pressed: false }))
     expect(screen.getByText('WP-24-00312')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /filter inventory to safe 6, 1 guns/i, pressed: true })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /filter inventory to unlocated or off-site guns, 2 guns/i }))
+    await user.click(screen.getByRole('button', { name: 'Assigned', pressed: false }))
     expect(screen.getByText('WP-24-00204')).toBeInTheDocument()
     expect(screen.queryByText('WP-24-00312')).not.toBeInTheDocument()
   })
 
-  it('composes assignment filters with register sorting and opens gun details', async () => {
+  it('composes unassigned filters with register sorting and opens gun details', async () => {
     const user = userEvent.setup()
     render(<App />)
     await screen.findByText('WP-24-00312')
-    await user.click(screen.getByRole('button', { name: 'Assigned', pressed: false }))
+    await user.click(screen.getByRole('button', { name: 'Unassigned', pressed: false }))
     expect(screen.getByText('WP-24-00312')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /serial number, sorted ascending/i }))
     await user.click(screen.getByRole('button', { name: /open wp-24-00312/i }))
@@ -98,6 +99,31 @@ describe('armory workflow', () => {
     await user.click(screen.getByRole('button', { name: /^History/i }))
     expect((await screen.findAllByText('Location updated')).length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: /^History/i })).toHaveTextContent('3')
+  })
+
+  it('filters assignable Beretta guns and assigns a fitted gun to an available slot', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Gun Fitter' }))
+    expect(await screen.findByRole('heading', { name: 'Gun Fitter' })).toBeInTheDocument()
+    expect(screen.getByText('WP-24-00312')).toBeInTheDocument()
+    expect(screen.queryByText('WP-24-00187')).not.toBeInTheDocument()
+
+    await user.type(screen.getByRole('spinbutton', { name: 'Minimum length of pull' }), '14.5')
+    expect(await screen.findByText('No assignable guns match these filters.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Reset' }))
+    expect(await screen.findByText('WP-24-00312')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Assign WP-24-00312' }))
+    expect(await screen.findByRole('dialog', { name: /assign fitted gun/i })).toBeInTheDocument()
+    const safe = screen.getByRole('combobox', { name: 'Safe' })
+    const slot = screen.getByRole('combobox', { name: 'Slot' })
+    expect(Array.from(slot.querySelectorAll('option')).map((option) => option.value)).toContain('21')
+    await user.selectOptions(safe, '6')
+    await user.selectOptions(slot, '22')
+    await user.type(screen.getByRole('textbox', { name: 'Cadet shooter' }), 'R. Fitter')
+    await user.click(screen.getByRole('button', { name: 'Assign gun' }))
+    expect(await screen.findByText('No assignable guns match these filters.')).toBeInTheDocument()
   })
 
   it('separates the two specifications columns in the gun drawer', async () => {
