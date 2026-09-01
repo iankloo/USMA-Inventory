@@ -772,10 +772,20 @@ export function createDemoApi(): ApiClient {
         .sort((left, right) => (right.occurredAt || "").localeCompare(left.occurredAt || ""));
     },
     async listAudits() {
-      return audit.id ? [audit] : [];
+      // Mirror the production list API, which intentionally returns aggregate
+      // counts only. Detail-dependent screens must hydrate with getAudit().
+      if (!audit.id) return [];
+      const { items: _items, scannedGuns: _scannedGuns, ...summary } = audit;
+      return [summary];
     },
     async getAudit() {
-      return audit;
+      // HTTP responses are values, not references into server-side state. Keep
+      // the demo boundary equivalent so UI state cannot be mutated in place.
+      return {
+        ...audit,
+        items: audit.items?.map((item) => ({ ...item })),
+        scannedGuns: audit.scannedGuns?.map((scan) => ({ ...scan })),
+      };
     },
     async createAudit(label) {
       const name = label.trim();
