@@ -101,6 +101,31 @@ describe('armory workflow', () => {
     expect(screen.getByRole('button', { name: /^History/i })).toHaveTextContent('3')
   })
 
+  it('filters assignable Beretta guns and assigns a fitted gun to an available slot', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Gun Fitter' }))
+    expect(await screen.findByRole('heading', { name: 'Gun Fitter' })).toBeInTheDocument()
+    expect(screen.getByText('WP-24-00312')).toBeInTheDocument()
+    expect(screen.queryByText('WP-24-00187')).not.toBeInTheDocument()
+
+    await user.type(screen.getByRole('spinbutton', { name: 'Minimum length of pull' }), '14.5')
+    expect(await screen.findByText('No assignable guns match these filters.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Reset' }))
+    expect(await screen.findByText('WP-24-00312')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Assign WP-24-00312' }))
+    expect(await screen.findByRole('dialog', { name: /assign fitted gun/i })).toBeInTheDocument()
+    const safe = screen.getByRole('combobox', { name: 'Safe' })
+    const slot = screen.getByRole('combobox', { name: 'Slot' })
+    expect(Array.from(slot.querySelectorAll('option')).map((option) => option.value)).toContain('21')
+    await user.selectOptions(safe, '6')
+    await user.selectOptions(slot, '22')
+    await user.type(screen.getByRole('textbox', { name: 'Cadet shooter' }), 'R. Fitter')
+    await user.click(screen.getByRole('button', { name: 'Assign gun' }))
+    expect(await screen.findByText('No assignable guns match these filters.')).toBeInTheDocument()
+  })
+
   it('puts the scan-first audit flow behind one dominant action', async () => {
     const user = userEvent.setup()
     render(<App />)

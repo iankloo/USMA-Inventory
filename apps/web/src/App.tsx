@@ -63,7 +63,7 @@ const initialAuthState = getInitialAuthState(
   new URLSearchParams(window.location.search).has("code"),
 );
 
-const MAIN_NAV_PAGES = ["inventory", "archived", "audits", "people", "history"] as const;
+const MAIN_NAV_PAGES = ["inventory", "fitter", "archived", "audits", "people", "history"] as const;
 type MainNavPage = (typeof MAIN_NAV_PAGES)[number];
 const LAST_MAIN_NAV_PAGE_KEY = "skeet-inventory:last-main-nav-page";
 
