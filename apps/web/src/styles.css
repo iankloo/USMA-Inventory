@@ -1608,6 +1608,7 @@ tbody tr:last-child td {
 .spec-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  column-gap: 24px;
 }
 .history-note {
   background: #f0f5f7;

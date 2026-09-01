@@ -100,6 +100,16 @@ describe('armory workflow', () => {
     expect(screen.getByRole('button', { name: /^History/i })).toHaveTextContent('3')
   })
 
+  it('separates the two specifications columns in the gun drawer', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await screen.findByText('WP-24-00187')
+
+    await user.click(screen.getByRole('button', { name: /open WP-24-00187/i }))
+
+    expect(getComputedStyle(document.querySelector('.spec-grid') as HTMLElement).columnGap).toBe('24px')
+  })
+
   it('puts the scan-first audit flow behind one dominant action', async () => {
     const user = userEvent.setup()
     render(<App />)
