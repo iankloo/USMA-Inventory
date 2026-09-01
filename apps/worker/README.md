@@ -11,7 +11,10 @@ then persist only their validated outputs.
   `{ valid, rows, issues }`. Rows have an explicit `decision` of `create` or `update`.
   `mode: "create-only"` rejects rows already present. Safe is validated as 2–7 and
   slot as 1–28; a slot cannot be supplied without a safe. A safe without a slot
-  is retained as a reported safe, while complete current locations use both.
+  is retained as a reported safe, while complete current locations use both. Optional
+  gun fitting columns include `handedness`, `lengthOfPull`, and `adjustableComb`;
+  the latter accepts boolean-style values such as `true`/`false`, `yes`/`no`, and
+  `1`/`0`.
 - `validateXlsxGunImport(input, options)` reads the first worksheet with the `xlsx`
   library and returns the same result. The workbook is not returned or persisted.
 - `extractPdfSerials(input, options)` uses selectable text through pdf.js and returns
