@@ -1,0 +1,1 @@
+ALTER TABLE "Gun" ADD COLUMN "chokeType" TEXT;

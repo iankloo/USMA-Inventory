@@ -11,6 +11,7 @@ export interface Gun {
   reportedSafe?: number | null;
   barrelLength: string;
   lengthOfPull: string;
+  chokeType?: string;
   handedness: "Right" | "Left" | "Neutral";
   adjustableComb: boolean | null;
   type: GunType | null;
@@ -177,6 +178,7 @@ export interface CreateGunInput {
   owner?: string | null;
   barrelLength?: number;
   lengthOfPull?: number;
+  chokeType?: string | null;
   handedness: "RIGHT" | "LEFT" | "AMBIDEXTROUS";
   adjustableComb?: boolean | null;
   type?: GunTypeCode | null;
@@ -191,6 +193,7 @@ export interface UpdateGunDetailsInput {
   owner?: string | null;
   barrelLength?: number | null;
   lengthOfPull?: number | null;
+  chokeType?: string | null;
   handedness?: "RIGHT" | "LEFT" | "AMBIDEXTROUS" | null;
   adjustableComb?: boolean | null;
   type?: GunTypeCode | null;
