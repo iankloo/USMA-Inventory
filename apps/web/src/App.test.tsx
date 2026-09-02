@@ -107,10 +107,12 @@ describe('armory workflow', () => {
     await user.click(screen.getByRole('button', { name: 'Gun Fitter' }))
     expect(await screen.findByRole('heading', { name: 'Gun Fitter' })).toBeInTheDocument()
     expect(screen.getByText('WP-24-00312')).toBeInTheDocument()
+    expect(screen.getByLabelText('Assignable gun summary').querySelector('strong')).toHaveTextContent('1')
     expect(screen.queryByText('WP-24-00187')).not.toBeInTheDocument()
 
     await user.type(screen.getByRole('spinbutton', { name: 'Minimum length of pull' }), '14.5')
     expect(await screen.findByText('No assignable guns match these filters.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Assignable gun summary').querySelector('strong')).toHaveTextContent('0')
     await user.click(screen.getByRole('button', { name: 'Reset' }))
     expect(await screen.findByText('WP-24-00312')).toBeInTheDocument()
 
