@@ -6,6 +6,7 @@ export type GunImportRow = {
     owner?: string;
     barrelLength?: string;
     lengthOfPull?: string;
+    chokeType?: string;
     handedness?: string;
     adjustableComb?: boolean;
     type?: "skeet" | "trap" | "sporting";

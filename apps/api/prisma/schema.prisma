@@ -113,6 +113,7 @@ model Gun {
   reportedSafe    Int?
   barrelLength    Decimal?         @db.Decimal(6, 2)
   lengthOfPull    Decimal?         @db.Decimal(6, 2)
+  chokeType       String?
   handedness      String?
   adjustableComb  Boolean?
   type            String?

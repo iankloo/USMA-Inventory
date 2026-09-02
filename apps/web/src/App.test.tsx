@@ -299,7 +299,7 @@ describe('armory workflow', () => {
     expect(await screen.findByText('Beretta 694 · 12 ga')).toBeInTheDocument()
     expect(screen.getAllByText('Safe 3 · Slot 8').length).toBeGreaterThan(0)
     await user.click(screen.getByRole('button', { name: /^History/i }))
-    expect(await screen.findByText(/Updated model, owner, length of pull, high-rib/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Updated model, owner, length of pull, choke type, high-rib/i)).toBeInTheDocument()
   })
 
   it('only offers exceptions for an actual unresolved audit item', async () => {

@@ -44,6 +44,7 @@ import type {
   CreateGunInput,
   CurrentUser,
   Gun,
+  GunTypeCode,
   ImportCommitResult,
   ImportPreview,
   ReconciliationResult,
@@ -1056,11 +1057,11 @@ function AddGunModal({
           <label>Serial number<input required value={serialNumber} onChange={(event) => setSerialNumber(event.target.value)} autoFocus /></label>
           <label>Model<input required value={model} onChange={(event) => setModel(event.target.value)} /></label>
           <label>Gauge<select value={gauge} onChange={(event) => setGauge(event.target.value)}><option>12 ga</option><option>20 ga</option><option>.410 ga</option></select></label>
-          <label>Choke type<input value={chokeType} onChange={(event) => setChokeType(event.target.value)} placeholder="e.g. Multi-choke" /></label>
           <label>Owner / manufacturer<input value={owner} onChange={(event) => setOwner(event.target.value)} placeholder="Optional" /></label>
           <label>Type<select value={type ?? ""} onChange={(event) => setType(event.target.value as CreateGunInput["type"])}><option value="SKEET">Skeet</option><option value="TRAP">Trap</option><option value="SPORTING">Sporting</option></select></label>
           <label>Barrel length (in)<input type="number" min="1" step="any" value={barrelLength} onChange={(event) => setBarrelLength(event.target.value)} /></label>
           <label>Length of pull (in)<input type="number" min="1" step="any" value={lengthOfPull} onChange={(event) => setLengthOfPull(event.target.value)} /></label>
+          <label>Choke type<input value={chokeType} onChange={(event) => setChokeType(event.target.value)} placeholder="e.g. Optima-Choke HP" /></label>
           <label>Handedness<select value={handedness} onChange={(event) => setHandedness(event.target.value as CreateGunInput["handedness"])}><option value="RIGHT">Right</option><option value="LEFT">Left</option><option value="AMBIDEXTROUS">Neutral</option></select></label>
           <label className="checkbox-field"><input type="checkbox" checked={highRib} onChange={(event) => setHighRib(event.target.checked)} /> High-rib</label>
           <label className="checkbox-field"><input type="checkbox" checked={adjustableComb} onChange={(event) => setAdjustableComb(event.target.checked)} /> Adjustable comb</label>
@@ -1452,7 +1453,11 @@ function FormModal({
   const [barrelLength, setBarrelLength] = useState(measurementInput(gun.barrelLength));
   const [lengthOfPull, setLengthOfPull] = useState(measurementInput(gun.lengthOfPull));
   const [handedness, setHandedness] = useState(gun.handedness === "Left" ? "LEFT" : gun.handedness === "Neutral" ? "AMBIDEXTROUS" : "RIGHT");
-  const [gunType, setGunType] = useState(gun.type === "Trap" ? "TRAP" : gun.type === "Sporting" ? "SPORTING" : gun.type === "Skeet" ? "SKEET" : "");
+  const [gunType, setGunType] = useState<GunTypeCode | "">(
+    gun.type === "Trap" ? "TRAP" : gun.type === "Sporting" ? "SPORTING" : gun.type === "Skeet" ? "SKEET"
+      : gun.type === "ACS" ? "ACS" : gun.type === "Vittoria" ? "VITTORIA" : gun.type === "Onyx" ? "ONYX"
+        : gun.type === "Trap (Single Barrel)" ? "TRAP (SINGLE BARREL)" : gun.type === "Trap (Double Barrel)" ? "TRAP (DOUBLE BARREL)" : ""
+  );
   const [highRib, setHighRib] = useState(gun.highRib == null ? "" : gun.highRib ? "yes" : "no");
   const [adjustableComb, setAdjustableComb] = useState(gun.adjustableComb == null ? "" : gun.adjustableComb ? "yes" : "no");
   const [person, setPerson] = useState("");
@@ -1477,7 +1482,7 @@ function FormModal({
           barrelLength: parseMeasurementInput(barrelLength, "Barrel length"),
           lengthOfPull: parseMeasurementInput(lengthOfPull, "Length of pull"),
           handedness: handedness as "RIGHT" | "LEFT" | "AMBIDEXTROUS",
-          type: gunType ? gunType as "SKEET" | "TRAP" | "SPORTING" : null,
+          type: gunType || null,
           highRib: highRib === "" ? null : highRib === "yes",
           adjustableComb: adjustableComb === "" ? null : adjustableComb === "yes",
         });
@@ -1522,16 +1527,16 @@ function FormModal({
               <input value={gauge} onChange={(event) => setGauge(event.target.value)} placeholder="e.g. 12 ga" />
             </label>
             <label>
-              Choke type
-              <input value={chokeType} onChange={(event) => setChokeType(event.target.value)} placeholder="e.g. Multi-choke" />
-            </label>
-            <label>
               Barrel length
               <input value={barrelLength} onChange={(event) => setBarrelLength(event.target.value)} placeholder="30" inputMode="decimal" />
             </label>
             <label>
               Length of pull
               <input value={lengthOfPull} onChange={(event) => setLengthOfPull(event.target.value)} placeholder="14.375" inputMode="decimal" />
+            </label>
+            <label>
+              Choke type
+              <input value={chokeType} onChange={(event) => setChokeType(event.target.value)} placeholder="Optima-Choke HP" />
             </label>
             <label>
               Handedness
@@ -1543,11 +1548,16 @@ function FormModal({
             </label>
             <label>
               Type
-              <select value={gunType} onChange={(event) => setGunType(event.target.value)}>
+              <select value={gunType} onChange={(event) => setGunType(event.target.value as GunTypeCode | "")}>
                 <option value="">Unknown</option>
                 <option value="SKEET">Skeet</option>
                 <option value="TRAP">Trap</option>
                 <option value="SPORTING">Sporting</option>
+                <option value="ACS">ACS</option>
+                <option value="VITTORIA">Vittoria</option>
+                <option value="ONYX">Onyx</option>
+                <option value="TRAP (SINGLE BARREL)">Trap (Single Barrel)</option>
+                <option value="TRAP (DOUBLE BARREL)">Trap (Double Barrel)</option>
               </select>
             </label>
             <label>

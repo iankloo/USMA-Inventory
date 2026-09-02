@@ -8,6 +8,7 @@ export type GunImportRow = {
   owner?: string;
   barrelLength?: string;
   lengthOfPull?: string;
+  chokeType?: string;
   handedness?: string;
   adjustableComb?: boolean;
   type?: "skeet" | "trap" | "sporting";
@@ -80,6 +81,8 @@ const HEADER_ALIASES: Record<string, keyof GunImportRow> = {
   barrel_length: "barrelLength",
   lengthofpull: "lengthOfPull",
   length_of_pull: "lengthOfPull",
+  choketype: "chokeType",
+  choke_type: "chokeType",
   handedness: "handedness",
   adjustablecomb: "adjustableComb",
   adjustable_comb: "adjustableComb",
@@ -212,6 +215,7 @@ function rowFromRecord(record: Record<string, unknown>, rowNumber: number): {
       owner: String(record.owner ?? "").trim() || undefined,
       barrelLength: String(record.barrelLength ?? "").trim() || undefined,
       lengthOfPull: String(record.lengthOfPull ?? "").trim() || undefined,
+      chokeType: String(record.chokeType ?? "").trim() || undefined,
       handedness: String(record.handedness ?? "").trim() || undefined,
       adjustableComb: adjustableComb === "invalid" ? undefined : adjustableComb,
       type: type as GunImportRow["type"],

@@ -54,7 +54,7 @@ function idParam(request: FastifyRequest): string {
 }
 
 function serializeGun(gun: any) {
-  return { ...gun, barrelLength: gun.barrelLength?.toString() ?? null, lengthOfPull: gun.lengthOfPull?.toString() ?? null };
+  return { ...gun, barrelLength: gun.barrelLength?.toString() ?? null, lengthOfPull: gun.lengthOfPull?.toString() ?? null, chokeType: gun.chokeType ?? null };
 }
 
 function gunDetailsSnapshot(gun: any) {
@@ -353,7 +353,7 @@ export async function createApp(options: AppOptions): Promise<FastifyInstance> {
           };
           const gun = prior
             ? await tx.gun.update({ where: { id: prior.id }, data })
-            : await tx.gun.create({ data: { serialNumber: row.serialNumber, model: row.model!, gauge: row.gauge, chokeType: row.chokeType, owner: row.owner, reportedSafe: data.reportedSafe, barrelLength: data.barrelLength, lengthOfPull: data.lengthOfPull, handedness: data.handedness, adjustableComb: data.adjustableComb, type: data.type, highRib: row.highRib, state: data.state ?? "STORED", locationId, lastStoredLocationId } });
+            : await tx.gun.create({ data: { serialNumber: row.serialNumber, model: row.model!, gauge: row.gauge, owner: row.owner, reportedSafe: data.reportedSafe, barrelLength: data.barrelLength, lengthOfPull: data.lengthOfPull, chokeType: data.chokeType, handedness: data.handedness, adjustableComb: data.adjustableComb, type: data.type, highRib: row.highRib, state: data.state ?? "STORED", locationId, lastStoredLocationId } });
           const action = prior ? "GUN_IMPORT_UPDATED" : "GUN_IMPORT_CREATED";
           await event(tx, actor.id, action, "Gun", gun.id, prior ? serializeGun(prior) : undefined, serializeGun(gun), "Spreadsheet import");
           if (row.assignee) {
@@ -407,7 +407,7 @@ export async function createApp(options: AppOptions): Promise<FastifyInstance> {
           const location = await tx.storageLocation.upsert({ where: { safe_slot: { safe: input.safe, slot: input.slot } }, create: { safe: input.safe, slot: input.slot }, update: {} });
           locationId = location.id;
         }
-        const created = await tx.gun.create({ data: { serialNumber, model: input.model, gauge: input.gauge, chokeType: input.chokeType, owner: input.owner, reportedSafe: input.slot === undefined ? input.safe : null, barrelLength: input.barrelLength, lengthOfPull: input.lengthOfPull, handedness: input.handedness, adjustableComb: input.adjustableComb, type: input.type, highRib: input.highRib, locationId, lastStoredLocationId: locationId } });
+        const created = await tx.gun.create({ data: { serialNumber, model: input.model, gauge: input.gauge, owner: input.owner, reportedSafe: input.slot === undefined ? input.safe : null, barrelLength: input.barrelLength, lengthOfPull: input.lengthOfPull, chokeType: input.chokeType, handedness: input.handedness, adjustableComb: input.adjustableComb, type: input.type, highRib: input.highRib, locationId, lastStoredLocationId: locationId } });
         await event(tx, actor.id, "GUN_CREATED", "Gun", created.id, undefined, serializeGun(created));
         return created;
       });

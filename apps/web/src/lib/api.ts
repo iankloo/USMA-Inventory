@@ -18,6 +18,21 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "/api").replace(
 );
 const savedLocations = new Map<string, { safe: number; slot: number }>();
 
+function displayGunType(value: unknown): string | null {
+  const type = String(value ?? "").trim().toUpperCase();
+  if (!type) return null;
+  return {
+    SKEET: "Skeet",
+    TRAP: "Trap",
+    SPORTING: "Sporting",
+    ACS: "ACS",
+    VITTORIA: "Vittoria",
+    ONYX: "Onyx",
+    "TRAP (SINGLE BARREL)": "Trap (Single Barrel)",
+    "TRAP (DOUBLE BARREL)": "Trap (Double Barrel)",
+  }[type] ?? type;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getAccessToken();
   const hasBody = init?.body !== undefined && init?.body !== null;
@@ -270,16 +285,7 @@ function normalizeGun(raw: any): Gun {
           ? "Neutral"
           : "Right",
     adjustableComb: raw.adjustableComb == null ? null : Boolean(raw.adjustableComb),
-    type:
-      raw.type == null || String(raw.type).trim() === ""
-        ? null
-        : raw.type === "TRAP"
-          ? "Trap"
-          : raw.type === "SPORTING"
-            ? "Sporting"
-            : raw.type === "SKEET"
-              ? "Skeet"
-              : null,
+    type: displayGunType(raw.type),
     highRib: raw.highRib == null ? null : Boolean(raw.highRib),
     status,
     safe: raw.location?.safe,
@@ -366,6 +372,7 @@ function formatActivityDetail(action: string, reason: string, before: unknown, a
         owner: "owner",
         barrelLength: "barrel length",
         lengthOfPull: "length of pull",
+        chokeType: "choke type",
         handedness: "handedness",
         type: "type",
         highRib: "high-rib",
@@ -620,6 +627,7 @@ export function createDemoApi(): ApiClient {
       if (input.owner !== undefined) gun.owner = input.owner;
       if (input.barrelLength !== undefined) gun.barrelLength = input.barrelLength == null ? "" : `${input.barrelLength} in`;
       if (input.lengthOfPull !== undefined) gun.lengthOfPull = input.lengthOfPull == null ? "" : `${input.lengthOfPull} in`;
+      if (input.chokeType !== undefined) gun.chokeType = input.chokeType == null ? "" : input.chokeType;
       if (input.handedness !== undefined) {
         gun.handedness = input.handedness === "LEFT" ? "Left" : input.handedness === "AMBIDEXTROUS" ? "Neutral" : "Right";
       }
@@ -633,6 +641,7 @@ export function createDemoApi(): ApiClient {
         before.gauge !== gun.gauge && "gauge",
         before.barrelLength !== gun.barrelLength && "barrel length",
         before.lengthOfPull !== gun.lengthOfPull && "length of pull",
+        before.chokeType !== gun.chokeType && "choke type",
         before.handedness !== gun.handedness && "handedness",
         before.type !== gun.type && "type",
         before.highRib !== gun.highRib && "high-rib",

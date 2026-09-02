@@ -1,5 +1,6 @@
 export type GunStatus = "Stored" | "Checked out" | "In repair" | "Archived";
-export type GunType = "Skeet" | "Trap" | "Sporting";
+export type GunType = string;
+export type GunTypeCode = "SKEET" | "TRAP" | "SPORTING" | "ACS" | "VITTORIA" | "ONYX" | "TRAP (SINGLE BARREL)" | "TRAP (DOUBLE BARREL)";
 
 export interface Gun {
   serial: string;
@@ -11,6 +12,7 @@ export interface Gun {
   reportedSafe?: number | null;
   barrelLength: string;
   lengthOfPull: string;
+  chokeType?: string;
   handedness: "Right" | "Left" | "Neutral";
   adjustableComb: boolean | null;
   type: GunType | null;
@@ -178,9 +180,10 @@ export interface CreateGunInput {
   owner?: string | null;
   barrelLength?: number;
   lengthOfPull?: number;
+  chokeType?: string | null;
   handedness: "RIGHT" | "LEFT" | "AMBIDEXTROUS";
   adjustableComb?: boolean | null;
-  type?: "SKEET" | "TRAP" | "SPORTING" | null;
+  type?: GunTypeCode | null;
   highRib?: boolean | null;
   safe?: number;
   slot?: number;
@@ -193,8 +196,9 @@ export interface UpdateGunDetailsInput {
   owner?: string | null;
   barrelLength?: number | null;
   lengthOfPull?: number | null;
+  chokeType?: string | null;
   handedness?: "RIGHT" | "LEFT" | "AMBIDEXTROUS" | null;
   adjustableComb?: boolean | null;
-  type?: "SKEET" | "TRAP" | "SPORTING" | null;
+  type?: GunTypeCode | null;
   highRib?: boolean | null;
 }
