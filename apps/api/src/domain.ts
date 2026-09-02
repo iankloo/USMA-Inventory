@@ -9,6 +9,7 @@ export const gunInputSchema = z.object({
   serialNumber: serialSchema,
   model: z.string().trim().min(1).max(120),
   gauge: z.string().trim().min(1).max(20).nullable().optional(),
+  chokeType: z.string().trim().max(80).nullable().optional(),
   owner: z.string().trim().min(1).max(160).nullable().optional(),
   barrelLength: z.number().positive().max(100).optional(),
   lengthOfPull: z.number().positive().max(100).optional(),
@@ -28,6 +29,7 @@ export const gunInputSchema = z.object({
 export const gunDetailsUpdateSchema = z.object({
   model: z.string().trim().min(1).max(120).optional(),
   gauge: z.string().trim().min(1).max(20).nullable().optional(),
+  chokeType: z.string().trim().max(80).nullable().optional(),
   owner: z.string().trim().min(1).max(160).nullable().optional(),
   barrelLength: z.number().positive().max(100).nullable().optional(),
   lengthOfPull: z.number().positive().max(100).nullable().optional(),

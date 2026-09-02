@@ -77,6 +77,51 @@ describe('armory workflow', () => {
     expect(screen.getByText('WP-23-00091')).toBeInTheDocument()
   })
 
+  it('searches across hidden and visible inventory fields', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await screen.findByText('WP-24-00187')
+
+    const search = screen.getByRole('searchbox', { name: 'Search all inventory fields' })
+    await user.type(search, 'Wenig Custom Guns')
+    expect(screen.getByText('WP-23-00091')).toBeInTheDocument()
+    expect(screen.queryByText('WP-24-00187')).not.toBeInTheDocument()
+
+    await user.clear(search)
+    await user.type(search, 'slot 21')
+    expect(screen.getByText('WP-24-00312')).toBeInTheDocument()
+    expect(screen.queryByText('WP-24-00187')).not.toBeInTheDocument()
+  })
+
+  it('adds and applies optional inventory field filters', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await screen.findByText('WP-24-00187')
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Additional filter field' }), 'repairVendor')
+    await user.click(screen.getByRole('button', { name: /add filter/i }))
+    await user.type(screen.getByRole('textbox', { name: 'Repair vendor filter' }), 'Wenig')
+    expect(screen.getByText('WP-23-00091')).toBeInTheDocument()
+    expect(screen.queryByText('WP-24-00204')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Remove Repair vendor filter' }))
+    expect(screen.getByText('WP-24-00204')).toBeInTheDocument()
+  })
+
+  it('adds and removes optional table columns', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await screen.findByText('WP-24-00187')
+    const columnSelect = screen.getByRole('combobox', { name: 'Additional table column' })
+    await user.selectOptions(columnSelect, 'gauge')
+    await user.click(screen.getByRole('button', { name: /add column/i }))
+    expect(screen.getByRole('columnheader', { name: 'Gauge' })).toBeInTheDocument()
+    const row = screen.getByText('WP-24-00187').closest('tr') as HTMLElement
+    expect(within(row).getByText('12 ga')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Hide Gauge column' }))
+    expect(screen.queryByRole('columnheader', { name: 'Gauge' })).not.toBeInTheDocument()
+  })
+
   it('shows live safe counts and composes location filters with assignment', async () => {
     const user = userEvent.setup()
     render(<App />)

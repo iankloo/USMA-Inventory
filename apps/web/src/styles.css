@@ -657,7 +657,21 @@ button.stat-card.selected {
   align-items: center;
   gap: 9px;
   padding: 12px 14px;
+  flex-wrap: wrap;
 }
+.inventory-search { flex: 1 1 260px; max-width: none; }
+.extra-filter-row { display: flex; flex: 1 1 100%; flex-wrap: wrap; align-items: end; gap: 8px; }
+.extra-filter, .extra-filter-add { display: flex; align-items: end; gap: 5px; }
+.extra-filter { position: relative; flex-direction: column; align-items: stretch; gap: 3px; }
+.extra-filter > span { color: #7d8991; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.extra-filter input, .extra-filter-add select { height: 32px; min-width: 125px; border: 1px solid #dbe1e5; border-radius: 5px; background: #fff; color: var(--ink); font-size: 12px; padding: 0 9px; }
+.extra-filter input { padding-right: 27px; }
+.extra-filter-remove { position: absolute; right: 4px; bottom: 6px; display: flex; border: 0; background: transparent; color: #9aa6ad; cursor: pointer; padding: 2px; }
+.extra-filter-remove:hover { color: var(--ink); }
+.extra-filter-add { align-items: center; }
+.extra-filter-add select { min-width: 145px; }
+.extra-filter-row > select { height: 32px; min-width: 145px; border: 1px solid #dbe1e5; border-radius: 5px; background: #fff; color: var(--ink); font-size: 12px; padding: 0 9px; }
+.column-chip { display: inline-flex; align-items: center; gap: 5px; }
 .fitter-summary {
   display: flex;
   gap: 22px;

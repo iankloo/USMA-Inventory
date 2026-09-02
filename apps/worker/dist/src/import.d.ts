@@ -2,6 +2,7 @@ export type GunImportRow = {
     serialNumber: string;
     model?: string;
     gauge?: string;
+    chokeType?: string;
     owner?: string;
     barrelLength?: string;
     lengthOfPull?: string;
