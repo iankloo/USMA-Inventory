@@ -53,6 +53,19 @@ Do not create a replacement instance, snapshot, or temporary clone without expli
 
 The desired revision is the current GitHub `main` branch. A normal deployment must happen in place on the production instance; it must not require a second Lightsail instance.
 
+For normal releases from this Mac, use the guarded automation from the repository root:
+
+```sh
+scripts/deploy-lightsail.sh --yes
+```
+
+It is intentionally opt-in (`--yes`), checks the expected Lightsail instance
+and static IP before connecting, preserves the known untracked server
+configuration, refuses tracked checkout changes, builds before replacing the
+API, and verifies the public health endpoint afterward. It creates no AWS
+resources. Environment-variable overrides exist for recovery only; do not use
+them for routine production deployments.
+
 Preflight:
 
 ```sh

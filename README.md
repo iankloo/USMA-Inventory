@@ -2,6 +2,21 @@
 
 Production deployment and recovery instructions are in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
+## Deploying production
+
+To deploy the newest GitHub `main` revision to the existing Lightsail instance,
+run this from the repository root:
+
+```sh
+scripts/deploy-lightsail.sh --yes
+```
+
+The script verifies the AWS account's instance and static IP, confirms public
+health and SSH access, refuses a dirty tracked production checkout, preserves
+the server-only configuration, and then builds/releases in place. It never
+creates an instance, snapshot, or other AWS resource. See
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for recovery and credential rules.
+
 ## Production access
 
 - Production URL: `https://arms.dse-apps.com`
