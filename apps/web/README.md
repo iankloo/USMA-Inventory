@@ -79,7 +79,7 @@ All routes except `/healthz` require `Authorization: Bearer <Cognito access toke
 
 ### JSON shapes
 
-The backend's gun row uses `serialNumber`, `state` (`STORED`, `CHECKED_OUT`, `REPAIR`), `lifecycle`, nested `location`, `assignments`, and `custody`. It also carries fitting metadata including `handedness`, `lengthOfPull`, and optional `adjustableComb`. The client normalizes this into its view model: `serial`, `status`, optional `safe`, `slot`, `assignedCadet`, `holder`, and `repairVendor`.
+The backend's gun row uses `serialNumber`, `state` (`STORED`, `CHECKED_OUT`, `REPAIR`), `lifecycle`, nested `location`, `assignments`, and `custody`. It also carries fitting metadata including `handedness`, `lengthOfPull`, optional `adjustableComb`, and optional `type`. The client preserves the supported type values `SKEET`, `TRAP`, `SPORTING`, `ACS`, `VITTORIA`, `ONYX`, `TRAP (SINGLE BARREL)`, and `TRAP (DOUBLE BARREL)` and displays their readable labels rather than treating them as unknown. It normalizes the row into its view model: `serial`, `status`, optional `safe`, `slot`, `assignedCadet`, `holder`, and `repairVendor`.
 
 `AuditSummary` includes `id`, `label`, `startedAt`, `startedBy`, `expected`, `resolved`, `scanned`, `repairVerified`, `exceptions`, `status`, and optional `reconciliation`. The server remains the source of truth for counts and lifecycle transitions; the demo adapter only approximates those updates.
 

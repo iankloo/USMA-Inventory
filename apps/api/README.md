@@ -37,6 +37,8 @@ npm test
 
 All routes except `/healthz` require a Cognito bearer token (or the explicit local development header described above).
 
+Gun `type` is optional. When supplied to a create or descriptive-update endpoint, it must be one of `SKEET`, `TRAP`, `SPORTING`, `ACS`, `VITTORIA`, `ONYX`, `TRAP (SINGLE BARREL)`, or `TRAP (DOUBLE BARREL)`. The API preserves the source type rather than reducing it to a generic category.
+
 Named account administrators manage the local account registry through `GET /api/users`, `POST /api/users`, `PATCH /api/users/:id/disable`, and `PATCH /api/users/:id/enable`. The latter is the auditable local recovery action; password reset delivery remains the Cognito responsibility.
 
 - `GET /api/guns`, `GET /api/guns/:serial`, `GET /api/guns/:serial/history`
