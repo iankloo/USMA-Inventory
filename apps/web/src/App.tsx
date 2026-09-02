@@ -299,7 +299,7 @@ function ArchivedGuns({
               ) : guns.map((gun) => (
                 <tr key={gun.serial} onClick={() => onSelectGun(gun)} tabIndex={0} onKeyDown={(event) => event.key === "Enter" && onSelectGun(gun)}>
                   <td><button className="serial-link" onClick={(event) => { event.stopPropagation(); onSelectGun(gun); }}>{gun.serial}</button></td>
-                  <td><div className="gun-cell"><div><strong>{gun.model}</strong><small>{gun.gauge || "Gauge unknown"} · {gun.type || "Type unknown"}</small></div></div></td>
+                  <td><div className="gun-cell"><div><strong>{gun.model}</strong><small>{gun.type || "Type unknown"}</small></div></div></td>
                   <td><span className="muted">Location unassigned</span></td>
                   <td><Badge tone={statusTone[gun.status]}>{gun.status}</Badge></td>
                   <td className="muted">{gun.updatedAt}</td>
@@ -674,7 +674,7 @@ function Inventory({
                         <div>
                           <strong>{gun.model}</strong>
                           <small>
-                            {gun.gauge || "Gauge unknown"} · {gun.type || "Type unknown"}
+                            {gun.type || "Type unknown"}
                           </small>
                         </div>
                       </div>

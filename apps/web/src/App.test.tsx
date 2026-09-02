@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it } from 'vitest'
 import App, { formatGunLocation } from './App'
@@ -51,6 +51,15 @@ describe('armory workflow', () => {
     expect(screen.getByText('WP-24-00204')).toBeInTheDocument()
     expect(screen.queryByText('WP-24-00187')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Show checked out guns', pressed: true })).toBeInTheDocument()
+  })
+
+  it('keeps gauge details out of the inventory list until a gun is opened', async () => {
+    render(<App />)
+    await screen.findByText('WP-24-00187')
+
+    const row = screen.getByText('WP-24-00187').closest('tr') as HTMLElement
+    expect(within(row).queryByText('12 ga')).not.toBeInTheDocument()
+    expect(within(row).getByText('Skeet')).toBeInTheDocument()
   })
 
   it('combines owner and inventory filters', async () => {
