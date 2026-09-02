@@ -767,6 +767,7 @@ function GunFitter({
   const [minimumPull, setMinimumPull] = useState("");
   const [maximumPull, setMaximumPull] = useState("");
   const [assigningGun, setAssigningGun] = useState<Gun | null>(null);
+  const [sort, setSort] = useState<{ key: "gun" | "serial" | "owner" | "handedness" | "pull" | "comb" | "location"; direction: "asc" | "desc" }>({ key: "serial", direction: "asc" });
 
   useEffect(() => {
     setLoading(true);
@@ -781,7 +782,7 @@ function GunFitter({
   const displayedGuns = useMemo(() => {
     const min = minimumPull === "" ? undefined : Number(minimumPull);
     const max = maximumPull === "" ? undefined : Number(maximumPull);
-    return assignableGuns.filter((gun) => {
+    const filtered = assignableGuns.filter((gun) => {
       const owner = gun.owner?.trim().toLowerCase();
       const matchesOwner = ownerFilter === "Beretta"
         ? owner === "beretta"
@@ -798,7 +799,24 @@ function GunFitter({
       const matchesSearch = !search || [gun.serial, gun.model, gun.gauge, gun.owner].some((value) => value?.toLowerCase().includes(search));
       return matchesOwner && (handedness === "All" || gun.handedness === handedness) && matchesComb && matchesPull && matchesSearch;
     });
-  }, [assignableGuns, comb, handedness, maximumPull, minimumPull, ownerFilter, query]);
+    const valueFor = (gun: Gun): string => {
+      switch (sort.key) {
+        case "gun": return `${gun.model} ${gun.gauge || ""} ${gun.type || ""}`;
+        case "owner": return gun.owner || "";
+        case "handedness": return gun.handedness;
+        case "pull": return gun.lengthOfPull || "";
+        case "comb": return gun.adjustableComb == null ? "Unknown" : gun.adjustableComb ? "Yes" : "No";
+        case "location": return formatGunLocation(gun);
+        default: return gun.serial;
+      }
+    };
+    return [...filtered].sort((left, right) => {
+      const result = valueFor(left).localeCompare(valueFor(right), undefined, { numeric: true, sensitivity: "base" }) || left.serial.localeCompare(right.serial, undefined, { numeric: true, sensitivity: "base" });
+      return sort.direction === "asc" ? result : -result;
+    });
+  }, [assignableGuns, comb, handedness, maximumPull, minimumPull, ownerFilter, query, sort]);
+  const changeSort = (key: typeof sort.key) => setSort((current) => current.key === key ? { key, direction: current.direction === "asc" ? "desc" : "asc" } : { key, direction: "asc" });
+  const sortLabel = (key: typeof sort.key, label: string) => `${label}, sorted ${sort.key === key ? (sort.direction === "asc" ? "ascending" : "descending") : "not sorted"}`;
   const resetFilters = () => {
     setQuery(""); setOwnerFilter("Beretta"); setHandedness("All"); setComb("All"); setMinimumPull(""); setMaximumPull("");
   };
@@ -826,7 +844,10 @@ function GunFitter({
       </div>
       {error && <div className="scan-message error" role="alert">{error}</div>}
       <div className="section-heading"><div><h2>Available matches</h2><span className="muted">{displayedGuns.length} gun{displayedGuns.length === 1 ? "" : "s"} meet these filters</span></div></div>
-      <div className="table-card"><div className="table-scroll"><table className="fitter-table"><thead><tr><th>Gun</th><th>Serial number</th><th>Owner</th><th>Hand</th><th>Length of pull</th><th>Adjustable comb</th><th>Location</th><th /></tr></thead><tbody>
+      <div className="table-card"><div className="table-scroll"><table className="fitter-table"><thead><tr>
+        {([["gun", "Gun"], ["serial", "Serial number"], ["owner", "Owner"], ["handedness", "Hand"], ["pull", "Length of pull"], ["comb", "Adjustable comb"], ["location", "Location"]] as const).map(([key, label]) => <th key={key} aria-sort={sort.key === key ? (sort.direction === "asc" ? "ascending" : "descending") : "none"}><button type="button" className="table-sort-button" onClick={() => changeSort(key)} aria-label={sortLabel(key, label)}>{label}<span aria-hidden="true">{sort.key === key ? (sort.direction === "asc" ? " ↑" : " ↓") : " ↕"}</span></button></th>)}
+        <th />
+      </tr></thead><tbody>
         {loading ? <tr><td colSpan={8} className="table-state"><LoaderCircle className="spin" /> Loading fit inventory…</td></tr>
           : displayedGuns.length === 0 ? <tr><td colSpan={8} className="table-state">No assignable guns match these filters.</td></tr>
             : displayedGuns.map((gun) => <tr key={gun.serial} onClick={() => onSelectGun(gun)} tabIndex={0} onKeyDown={(event) => event.key === "Enter" && onSelectGun(gun)}><td><strong>{gun.model}</strong><small className="table-secondary">{gun.gauge || "Gauge unknown"} · {gun.type || "Type unknown"}</small></td><td><button className="serial-link" onClick={(event) => { event.stopPropagation(); onSelectGun(gun); }}>{gun.serial}</button></td><td>{gun.owner || "Unknown"}</td><td><Badge tone={gun.handedness === "Left" ? "blue" : gun.handedness === "Neutral" ? "gray" : "green"}>{gun.handedness}</Badge></td><td>{gun.lengthOfPull || "Unknown"}</td><td>{gun.adjustableComb == null ? "Unknown" : gun.adjustableComb ? "Yes" : "No"}</td><td><span className="location"><MapPin size={14} />{formatGunLocation(gun)}</span></td><td><button className="button button-secondary fitter-assign" aria-label={`Assign ${gun.serial}`} onClick={(event) => { event.stopPropagation(); setAssigningGun(gun); }}>Assign</button><button className="row-chevron" aria-label={`Open ${gun.serial}`} onClick={(event) => { event.stopPropagation(); onSelectGun(gun); }}><ArrowRight size={16} /></button></td></tr>)}</tbody></table></div><div className="table-footer"><span>All listed guns are stored and not assigned to a cadet.</span></div></div>

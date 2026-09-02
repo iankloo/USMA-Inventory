@@ -126,6 +126,20 @@ describe('armory workflow', () => {
     expect(await screen.findByText('No assignable guns match these filters.')).toBeInTheDocument()
   })
 
+  it('sorts Gun Fitter rows by every displayed field', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Gun Fitter' }))
+    await screen.findByRole('heading', { name: 'Gun Fitter' })
+    for (const label of ['Gun', 'Serial number', 'Owner', 'Hand', 'Length of pull', 'Adjustable comb', 'Location']) {
+      expect(screen.getByRole('button', { name: new RegExp(`^${label}, sorted`) })).toBeInTheDocument()
+    }
+    await user.click(screen.getByRole('button', { name: /^Owner, sorted not sorted/i }))
+    expect(screen.getByRole('button', { name: /^Owner, sorted ascending/i })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /^Owner, sorted ascending/i }))
+    expect(screen.getByRole('button', { name: /^Owner, sorted descending/i })).toBeInTheDocument()
+  })
+
   it('separates the two specifications columns in the gun drawer', async () => {
     const user = userEvent.setup()
     render(<App />)
