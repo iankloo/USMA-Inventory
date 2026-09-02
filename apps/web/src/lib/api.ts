@@ -18,6 +18,21 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "/api").replace(
 );
 const savedLocations = new Map<string, { safe: number; slot: number }>();
 
+function displayGunType(value: unknown): string | null {
+  const type = String(value ?? "").trim().toUpperCase();
+  if (!type) return null;
+  return {
+    SKEET: "Skeet",
+    TRAP: "Trap",
+    SPORTING: "Sporting",
+    ACS: "ACS",
+    VITTORIA: "Vittoria",
+    ONYX: "Onyx",
+    "TRAP (SINGLE BARREL)": "Trap (Single Barrel)",
+    "TRAP (DOUBLE BARREL)": "Trap (Double Barrel)",
+  }[type] ?? type;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getAccessToken();
   const hasBody = init?.body !== undefined && init?.body !== null;
@@ -269,16 +284,7 @@ function normalizeGun(raw: any): Gun {
           ? "Neutral"
           : "Right",
     adjustableComb: raw.adjustableComb == null ? null : Boolean(raw.adjustableComb),
-    type:
-      raw.type == null || String(raw.type).trim() === ""
-        ? null
-        : raw.type === "TRAP"
-          ? "Trap"
-          : raw.type === "SPORTING"
-            ? "Sporting"
-            : raw.type === "SKEET"
-              ? "Skeet"
-              : null,
+    type: displayGunType(raw.type),
     highRib: raw.highRib == null ? null : Boolean(raw.highRib),
     status,
     safe: raw.location?.safe,

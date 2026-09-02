@@ -1,7 +1,16 @@
 import { z } from "zod";
 
 export const serialSchema = z.string().trim().min(2).max(64).regex(/^[A-Za-z0-9][A-Za-z0-9._/-]*$/, "serial must contain only letters, numbers, dot, underscore, slash, or hyphen");
-export const gunTypeSchema = z.enum(["SKEET", "TRAP", "SPORTING"]);
+export const gunTypeSchema = z.enum([
+  "SKEET",
+  "TRAP",
+  "SPORTING",
+  "ACS",
+  "VITTORIA",
+  "ONYX",
+  "TRAP (SINGLE BARREL)",
+  "TRAP (DOUBLE BARREL)"
+]);
 export const handednessValueSchema = z.enum(["LEFT", "RIGHT", "AMBIDEXTROUS"]);
 export const handednessSchema = handednessValueSchema.optional();
 
