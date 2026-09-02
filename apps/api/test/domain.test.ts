@@ -27,6 +27,12 @@ test("gun detail updates validate descriptive fields and reject identity/locatio
   assert.throws(() => gunDetailsUpdateSchema.parse({ barrelLength: 0 }));
 });
 
+test("gun detail updates preserve every source-of-truth model type", () => {
+  for (const type of ["ACS", "VITTORIA", "ONYX", "TRAP (SINGLE BARREL)", "TRAP (DOUBLE BARREL)"]) {
+    assert.equal(gunDetailsUpdateSchema.parse({ type }).type, type);
+  }
+});
+
 test("reconciliation requires a reviewed non-empty serial set", () => {
   assert.equal(reconciliationSchema.parse({ sourceName: "October report", serials: ["A-1"] }).serials.length, 1);
   assert.throws(() => parseOrThrow(reconciliationSchema, { sourceName: "October report", serials: [] }));
