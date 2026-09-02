@@ -107,6 +107,7 @@ model Gun {
   state           GunState          @default(STORED)
   model           String
   gauge           String?
+  chokeType       String?
   owner           String?
   /// A legacy-reported safe with no known slot. Complete current locations use StorageLocation.
   reportedSafe    Int?

@@ -68,6 +68,47 @@ const MAIN_NAV_PAGES = ["inventory", "fitter", "archived", "audits", "people", "
 type MainNavPage = (typeof MAIN_NAV_PAGES)[number];
 const LAST_MAIN_NAV_PAGE_KEY = "skeet-inventory:last-main-nav-page";
 
+type ExtraFilterField = "gauge" | "chokeType" | "type" | "handedness" | "barrelLength" | "lengthOfPull" | "highRib" | "adjustableComb" | "safe" | "slot" | "holder" | "repairVendor";
+type TableColumnKey = "gauge" | "chokeType" | "type" | "owner" | "handedness" | "barrelLength" | "lengthOfPull" | "highRib" | "adjustableComb" | "safe" | "slot";
+const extraFilterOptions: Array<{ key: ExtraFilterField; label: string }> = [
+  { key: "gauge", label: "Gauge" }, { key: "chokeType", label: "Choke type" },
+  { key: "type", label: "Type" },
+  { key: "handedness", label: "Handedness" },
+  { key: "barrelLength", label: "Barrel length" },
+  { key: "lengthOfPull", label: "Length of pull" },
+  { key: "highRib", label: "High rib" },
+  { key: "adjustableComb", label: "Adjustable comb" },
+  { key: "safe", label: "Safe" },
+  { key: "slot", label: "Slot" },
+  { key: "holder", label: "Holder" },
+  { key: "repairVendor", label: "Repair vendor" },
+];
+const tableColumnOptions: Array<{ key: TableColumnKey; label: string }> = [
+  { key: "gauge", label: "Gauge" }, { key: "chokeType", label: "Choke type" }, { key: "type", label: "Type" }, { key: "owner", label: "Owner" },
+  { key: "handedness", label: "Handedness" }, { key: "barrelLength", label: "Barrel length" },
+  { key: "lengthOfPull", label: "Length of pull" }, { key: "highRib", label: "High rib" },
+  { key: "adjustableComb", label: "Adjustable comb" }, { key: "safe", label: "Safe" }, { key: "slot", label: "Slot" },
+];
+
+function gunSearchText(gun: Gun): string {
+  return Object.entries(gun)
+    .flatMap(([key, value]) => [key, value == null ? "" : String(value)])
+    .join(" ")
+    .toLowerCase();
+}
+
+function extraFilterValue(gun: Gun, field: ExtraFilterField): string {
+  const value = gun[field];
+  return value == null ? "" : String(value);
+}
+
+function tableColumnValue(gun: Gun, field: TableColumnKey): string {
+  if (field === "safe") return gun.safe == null ? "Unknown" : String(gun.safe);
+  if (field === "slot") return gun.slot == null ? "Unknown" : String(gun.slot);
+  if (field === "highRib" || field === "adjustableComb") return gun[field] == null ? "Unknown" : gun[field] ? "Yes" : "No";
+  return String(gun[field] ?? "Unknown");
+}
+
 function initialMainNavPage(): MainNavPage {
   try {
     const savedPage = window.sessionStorage.getItem(LAST_MAIN_NAV_PAGE_KEY);
@@ -333,6 +374,11 @@ function Inventory({
   const [registerFilter, setRegisterFilter] = useState<"All" | "Assigned" | "Unassigned" | "Stored" | "Checked out" | "Repair">("All");
   const [ownerFilter, setOwnerFilter] = useState<"All" | "Beretta" | "DCA" | "Personal" | "Owner unknown">("All");
   const [locationFilter, setLocationFilter] = useState<"All locations" | "Safe 2" | "Safe 3" | "Safe 4" | "Safe 5" | "Safe 6" | "Safe 7" | "Unlocated/off-site">("All locations");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [extraFilters, setExtraFilters] = useState<Array<{ field: ExtraFilterField; value: string }>>([]);
+  const [filterFieldToAdd, setFilterFieldToAdd] = useState<ExtraFilterField>("gauge");
+  const [visibleExtraColumns, setVisibleExtraColumns] = useState<TableColumnKey[]>([]);
+  const [columnToAdd, setColumnToAdd] = useState<TableColumnKey>("gauge");
   const [showAddGun, setShowAddGun] = useState(false);
   const [message, setMessage] = useState("");
   const [importPreview, setImportPreview] = useState<{ file: File; result: ImportPreview } | null>(null);
@@ -350,6 +396,8 @@ function Inventory({
   }, [refreshToken]);
   const displayedGuns = useMemo(() => {
     const filtered = guns.filter((gun) => {
+      const terms = searchQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      const matchesSearch = terms.every((term) => gunSearchText(gun).includes(term));
       const matchesRegister = (() => {
         switch (registerFilter) {
           case "Assigned": return Boolean(gun.assignedCadet);
@@ -371,7 +419,8 @@ function Inventory({
       const matchesLocation = locationFilter === "All locations"
         || (locationFilter === "Unlocated/off-site" && !isStoredInSafe)
         || (locationFilter.startsWith("Safe ") && isStoredInSafe && knownSafe === Number(locationFilter.slice(5)));
-      return matchesRegister && matchesOwner && matchesLocation;
+      const matchesExtra = extraFilters.every(({ field, value }) => !value.trim() || extraFilterValue(gun, field).toLowerCase().includes(value.trim().toLowerCase()));
+      return matchesSearch && matchesRegister && matchesOwner && matchesLocation && matchesExtra;
     });
     const valueFor = (gun: Gun): string => {
       switch (sort.key) {
@@ -387,7 +436,21 @@ function Inventory({
       const result = valueFor(left).localeCompare(valueFor(right), undefined, { numeric: true, sensitivity: "base" }) || left.serial.localeCompare(right.serial, undefined, { numeric: true, sensitivity: "base" });
       return sort.direction === "asc" ? result : -result;
     });
-  }, [guns, registerFilter, ownerFilter, locationFilter, sort]);
+  }, [guns, searchQuery, registerFilter, ownerFilter, locationFilter, extraFilters, sort]);
+  const availableExtraFilterOptions = extraFilterOptions.filter(({ key }) => !extraFilters.some((filter) => filter.field === key));
+  const addExtraFilter = () => {
+    if (!availableExtraFilterOptions.some(({ key }) => key === filterFieldToAdd)) return;
+    setExtraFilters((current) => [...current, { field: filterFieldToAdd, value: "" }]);
+    const next = availableExtraFilterOptions.find(({ key }) => key !== filterFieldToAdd);
+    if (next) setFilterFieldToAdd(next.key);
+  };
+  const availableTableColumns = tableColumnOptions.filter(({ key }) => !visibleExtraColumns.includes(key));
+  const addTableColumn = () => {
+    if (!availableTableColumns.some(({ key }) => key === columnToAdd)) return;
+    setVisibleExtraColumns((current) => [...current, columnToAdd]);
+    const next = availableTableColumns.find(({ key }) => key !== columnToAdd);
+    if (next) setColumnToAdd(next.key);
+  };
   const changeSort = (key: typeof sort.key) => setSort((current) => current.key === key ? { key, direction: current.direction === "asc" ? "desc" : "asc" } : { key, direction: "asc" });
   const sortLabel = (key: typeof sort.key, label: string) => `${label}, sorted ${sort.key === key ? (sort.direction === "asc" ? "ascending" : "descending") : "not sorted"}`;
   const counts = useMemo(() => ({
@@ -577,6 +640,16 @@ function Inventory({
         </div>
       </div>
       <div className="table-toolbar">
+        <label className="search-wrap inventory-search">
+          <Search size={15} aria-hidden="true" />
+          <input
+            type="search"
+            aria-label="Search all inventory fields"
+            placeholder="Search all fields…"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+          />
+        </label>
         <div className="register-filter-groups">
           <div className="register-filter-group" role="group" aria-label="Assignment filters">
             <span className="register-filter-label">Assignment</span>
@@ -617,6 +690,46 @@ function Inventory({
             </div>
           </div>
         </div>
+        <div className="extra-filter-row" aria-label="Additional inventory filters">
+          {extraFilters.map((filter, index) => {
+            const option = extraFilterOptions.find(({ key }) => key === filter.field);
+            return (
+              <label className="extra-filter" key={filter.field}>
+                <span>{option?.label}</span>
+                <input
+                  aria-label={`${option?.label} filter`}
+                  placeholder={`Filter ${option?.label?.toLowerCase()}`}
+                  value={filter.value}
+                  onChange={(event) => setExtraFilters((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, value: event.target.value } : item))}
+                />
+                <button type="button" className="extra-filter-remove" aria-label={`Remove ${option?.label} filter`} onClick={() => setExtraFilters((current) => current.filter((_, itemIndex) => itemIndex !== index))}>
+                  <X size={13} />
+                </button>
+              </label>
+            );
+          })}
+          {availableExtraFilterOptions.length > 0 && (
+            <div className="extra-filter-add">
+              <select aria-label="Additional filter field" value={filterFieldToAdd} onChange={(event) => setFilterFieldToAdd(event.target.value as ExtraFilterField)}>
+                {availableExtraFilterOptions.map(({ key, label }) => <option key={key} value={key}>{label}</option>)}
+              </select>
+              <button type="button" className="filter-button" onClick={addExtraFilter}><Plus size={14} /> Add filter</button>
+            </div>
+          )}
+        </div>
+        <div className="extra-filter-row" aria-label="Inventory table columns">
+          <span className="register-filter-label">Table columns</span>
+          {visibleExtraColumns.map((column) => {
+            const option = tableColumnOptions.find(({ key }) => key === column);
+            return <button key={column} type="button" className="register-filter-chip selected column-chip" onClick={() => setVisibleExtraColumns((current) => current.filter((item) => item !== column))} aria-label={`Hide ${option?.label} column`}>{option?.label} <X size={12} /></button>;
+          })}
+          {availableTableColumns.length > 0 && <>
+            <select aria-label="Additional table column" value={columnToAdd} onChange={(event) => setColumnToAdd(event.target.value as TableColumnKey)}>
+              {availableTableColumns.map(({ key, label }) => <option key={key} value={key}>{label}</option>)}
+            </select>
+            <button type="button" className="filter-button" onClick={addTableColumn}><Plus size={14} /> Add column</button>
+          </>}
+        </div>
       </div>
       {message && <div className="scan-message success" role="status">{message}<button onClick={() => setMessage("")} aria-label="Dismiss message"><X size={14} /></button></div>}
       <div className="table-card">
@@ -638,19 +751,20 @@ function Inventory({
                     </button>
                   </th>
                 ))}
+                {visibleExtraColumns.map((key) => <th key={key}>{tableColumnOptions.find((option) => option.key === key)?.label}</th>)}
                 <th />
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="table-state">
+                  <td colSpan={7 + visibleExtraColumns.length} className="table-state">
                     <LoaderCircle className="spin" /> Loading inventory…
                   </td>
                 </tr>
               ) : displayedGuns.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="table-state">
+                  <td colSpan={7 + visibleExtraColumns.length} className="table-state">
                     No guns match the current filters.
                   </td>
                 </tr>
@@ -720,6 +834,7 @@ function Inventory({
                       <Badge tone={statusTone[gun.status]}>{gun.status}</Badge>
                     </td>
                     <td className="muted">{gun.updatedAt}</td>
+                    {visibleExtraColumns.map((key) => <td key={key}>{tableColumnValue(gun, key)}</td>)}
                     <td>
                       <button
                         className="row-chevron"
@@ -897,10 +1012,10 @@ function AddGunModal({
   const [serialNumber, setSerialNumber] = useState("");
   const [model, setModel] = useState("");
   const [gauge, setGauge] = useState("12 ga");
+  const [chokeType, setChokeType] = useState("");
   const [owner, setOwner] = useState("");
   const [barrelLength, setBarrelLength] = useState("");
   const [lengthOfPull, setLengthOfPull] = useState("");
-  const [chokeType, setChokeType] = useState("");
   const [handedness, setHandedness] = useState<CreateGunInput["handedness"]>("RIGHT");
   const [type, setType] = useState<CreateGunInput["type"]>("SKEET");
   const [highRib, setHighRib] = useState(false);
@@ -916,10 +1031,10 @@ function AddGunModal({
         serialNumber,
         model,
         gauge,
+        chokeType: chokeType.trim() || undefined,
         owner: owner.trim() || undefined,
         barrelLength: barrelLength ? Number(barrelLength) : undefined,
         lengthOfPull: lengthOfPull ? Number(lengthOfPull) : undefined,
-        chokeType: chokeType.trim() || undefined,
         handedness,
         type,
         highRib,
@@ -1166,11 +1281,12 @@ function GunDrawer({
             >
               <div className="spec-grid">
                 <InfoRow label="Model" value={gun.model} />
+                <InfoRow label="Gauge" value={gun.gauge || "Unknown"} />
+                <InfoRow label="Choke type" value={gun.chokeType || "Unknown"} />
                 <InfoRow label="Type" value={gun.type || "Unknown"} />
                 <InfoRow label="Owner / manufacturer" value={gun.owner || "Unknown"} />
                 <InfoRow label="Barrel" value={gun.barrelLength} />
                 <InfoRow label="Length of pull" value={gun.lengthOfPull} />
-                <InfoRow label="Choke type" value={gun.chokeType || "Unknown"} />
                 <InfoRow label="Handedness" value={gun.handedness} />
                 <InfoRow label="Adjustable comb" value={gun.adjustableComb == null ? "Unknown" : gun.adjustableComb ? "Yes" : "No"} />
                 <InfoRow label="High-rib" value={gun.highRib == null ? "Unknown" : gun.highRib ? "Yes" : "No"} />
@@ -1332,10 +1448,10 @@ function FormModal({
   const [useSavedLocation, setUseSavedLocation] = useState(type === "return" && savedSafe != null && savedSlot != null);
   const [model, setModel] = useState(gun.model);
   const [gauge, setGauge] = useState(gun.gauge || "");
+  const [chokeType, setChokeType] = useState(gun.chokeType || "");
   const [owner, setOwner] = useState(gun.owner || "");
   const [barrelLength, setBarrelLength] = useState(measurementInput(gun.barrelLength));
   const [lengthOfPull, setLengthOfPull] = useState(measurementInput(gun.lengthOfPull));
-  const [chokeType, setChokeType] = useState(gun.chokeType || "");
   const [handedness, setHandedness] = useState(gun.handedness === "Left" ? "LEFT" : gun.handedness === "Neutral" ? "AMBIDEXTROUS" : "RIGHT");
   const [gunType, setGunType] = useState<GunTypeCode | "">(
     gun.type === "Trap" ? "TRAP" : gun.type === "Sporting" ? "SPORTING" : gun.type === "Skeet" ? "SKEET"
@@ -1361,10 +1477,10 @@ function FormModal({
         updated = await client.updateGunDetails(gun.serial, {
           model: model.trim(),
           gauge: gauge.trim() || null,
+          chokeType: chokeType.trim() || null,
           owner: owner.trim() || null,
           barrelLength: parseMeasurementInput(barrelLength, "Barrel length"),
           lengthOfPull: parseMeasurementInput(lengthOfPull, "Length of pull"),
-          chokeType: chokeType.trim() || null,
           handedness: handedness as "RIGHT" | "LEFT" | "AMBIDEXTROUS",
           type: gunType || null,
           highRib: highRib === "" ? null : highRib === "yes",

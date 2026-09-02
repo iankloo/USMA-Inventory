@@ -6,6 +6,7 @@ export interface Gun {
   serial: string;
   model: string;
   gauge: string | null;
+  chokeType?: string | null;
   owner?: string | null;
   /** Legacy-reported safe when the slot is unknown; complete locations use safe/slot. */
   reportedSafe?: number | null;
@@ -175,6 +176,7 @@ export interface CreateGunInput {
   serialNumber: string;
   model: string;
   gauge?: string | null;
+  chokeType?: string | null;
   owner?: string | null;
   barrelLength?: number;
   lengthOfPull?: number;
@@ -190,6 +192,7 @@ export interface CreateGunInput {
 export interface UpdateGunDetailsInput {
   model?: string;
   gauge?: string | null;
+  chokeType?: string | null;
   owner?: string | null;
   barrelLength?: number | null;
   lengthOfPull?: number | null;

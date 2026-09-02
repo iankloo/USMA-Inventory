@@ -273,11 +273,11 @@ function normalizeGun(raw: any): Gun {
     serial,
     model: raw.model,
     gauge: raw.gauge == null || String(raw.gauge).trim() === "" ? null : String(raw.gauge),
+    chokeType: raw.chokeType == null || String(raw.chokeType).trim() === "" ? null : String(raw.chokeType),
     owner: raw.owner == null || String(raw.owner).trim() === "" ? null : String(raw.owner),
     reportedSafe: raw.reportedSafe == null ? null : Number(raw.reportedSafe),
     barrelLength: raw.barrelLength == null ? "" : `${raw.barrelLength} in`,
     lengthOfPull: raw.lengthOfPull == null ? "" : `${raw.lengthOfPull} in`,
-    chokeType: raw.chokeType == null ? "" : String(raw.chokeType),
     handedness:
       raw.handedness === "LEFT"
         ? "Left"

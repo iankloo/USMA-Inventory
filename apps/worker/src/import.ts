@@ -4,6 +4,7 @@ export type GunImportRow = {
   serialNumber: string;
   model?: string;
   gauge?: string;
+  chokeType?: string;
   owner?: string;
   barrelLength?: string;
   lengthOfPull?: string;
@@ -66,6 +67,9 @@ const HEADER_ALIASES: Record<string, keyof GunImportRow> = {
   serial_number: "serialNumber",
   model: "model",
   gauge: "gauge",
+  choke: "chokeType",
+  choketype: "chokeType",
+  choke_type: "chokeType",
   owner: "owner",
   manufacturer: "owner",
   status: "status",
@@ -207,6 +211,7 @@ function rowFromRecord(record: Record<string, unknown>, rowNumber: number): {
       serialNumber,
       model: String(record.model ?? "").trim() || undefined,
       gauge: String(record.gauge ?? "").trim() || undefined,
+      chokeType: String(record.chokeType ?? "").trim() || undefined,
       owner: String(record.owner ?? "").trim() || undefined,
       barrelLength: String(record.barrelLength ?? "").trim() || undefined,
       lengthOfPull: String(record.lengthOfPull ?? "").trim() || undefined,
