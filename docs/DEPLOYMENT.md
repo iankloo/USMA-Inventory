@@ -66,6 +66,11 @@ API, and verifies the public health endpoint afterward. It creates no AWS
 resources. Environment-variable overrides exist for recovery only; do not use
 them for routine production deployments.
 
+The script writes `/opt/arms-inventory/.deployed-commit` only after the new API
+starts and its local health check passes. This is deliberately separate from
+the checkout's Git `HEAD`: a build can be interrupted after the checkout has
+been updated, and that must be retried rather than reported as deployed.
+
 Preflight:
 
 ```sh

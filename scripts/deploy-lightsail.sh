@@ -15,6 +15,7 @@ readonly DEPLOY_KEY="${DEPLOY_SSH_KEY:-$HOME/.ssh/arms-inventory-deploy}"
 readonly DEPLOY_USER="${DEPLOY_SSH_USER:-ubuntu}"
 readonly REPOSITORY_DIR="${PRODUCTION_REPOSITORY_DIR:-/opt/arms-inventory/app}"
 readonly WEB_DIR="${PRODUCTION_WEB_DIR:-/opt/arms-inventory/web-dist}"
+readonly DEPLOY_RECORD="${PRODUCTION_DEPLOY_RECORD:-/opt/arms-inventory/.deployed-commit}"
 readonly PRODUCTION_URL="${PRODUCTION_URL:-https://arms.dse-apps.com}"
 
 usage() {
@@ -78,11 +79,12 @@ ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$DEPLOY_KEY" \
   "$DEPLOY_USER@$EXPECTED_IP" 'printf "Deployment SSH access verified\\n"'
 
 ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$DEPLOY_KEY" \
-  "$DEPLOY_USER@$EXPECTED_IP" bash -s -- "$REPOSITORY_DIR" "$WEB_DIR" <<'REMOTE_SCRIPT'
+  "$DEPLOY_USER@$EXPECTED_IP" bash -s -- "$REPOSITORY_DIR" "$WEB_DIR" "$DEPLOY_RECORD" <<'REMOTE_SCRIPT'
 set -Eeuo pipefail
 
 repository_dir="$1"
 web_dir="$2"
+deploy_record="$3"
 
 cd "$repository_dir"
 sudo git fetch origin main
@@ -96,12 +98,16 @@ fi
 
 current_commit="$(sudo git rev-parse HEAD)"
 target_commit="$(sudo git rev-parse origin/main)"
-if [[ "$current_commit" == "$target_commit" ]]; then
-  echo "Production already has GitHub main: $current_commit"
+deployed_commit="$(sudo cat "$deploy_record" 2>/dev/null || true)"
+if [[ "$deployed_commit" == "$target_commit" ]]; then
+  echo "Production already runs GitHub main: $deployed_commit"
   exit 0
 fi
 
-echo "Deploying $current_commit -> $target_commit"
+# The checkout can already contain target_commit after an interrupted build.
+# The record changes only after the new API starts and its local health check
+# succeeds, so it is the authoritative answer to "what is deployed?".
+echo "Deploying checkout $current_commit to runtime target $target_commit"
 sudo git reset --hard "$target_commit"
 
 # Build first, while the currently running API remains available.
@@ -134,8 +140,10 @@ sudo rsync -a --delete --delay-updates "$stage_dir"/ "$web_dir"/
 sudo docker compose up -d --no-deps --force-recreate --no-build api
 sleep 5
 sudo docker compose ps api
+curl --fail --silent --show-error http://127.0.0.1/healthz >/dev/null
+printf '%s\n' "$target_commit" | sudo tee "$deploy_record" >/dev/null
 printf 'Deployed commit: '
-sudo git rev-parse HEAD
+sudo cat "$deploy_record"
 REMOTE_SCRIPT
 
 curl --fail --silent --show-error "$PRODUCTION_URL/healthz" >/dev/null

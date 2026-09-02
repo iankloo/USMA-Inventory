@@ -17,6 +17,10 @@ the server-only configuration, and then builds/releases in place. It never
 creates an instance, snapshot, or other AWS resource. See
 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for recovery and credential rules.
 
+The server records the commit only after its rebuilt API has started and passed
+a local health check. That means a later run retries safely if a previous
+build was interrupted.
+
 ## Production access
 
 - Production URL: `https://arms.dse-apps.com`
