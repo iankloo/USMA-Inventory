@@ -250,6 +250,7 @@ test("CSV import preview validates against persisted serials and commit appends 
     gauge: "12",
     barrelLength: 30,
     lengthOfPull: 14,
+    chokeType: null,
     handedness: "RIGHT",
     type: "SKEET",
     highRib: false,
