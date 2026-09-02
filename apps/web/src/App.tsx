@@ -68,21 +68,7 @@ const MAIN_NAV_PAGES = ["inventory", "fitter", "archived", "audits", "people", "
 type MainNavPage = (typeof MAIN_NAV_PAGES)[number];
 const LAST_MAIN_NAV_PAGE_KEY = "skeet-inventory:last-main-nav-page";
 
-type ExtraFilterField = "gauge" | "chokeType" | "type" | "handedness" | "barrelLength" | "lengthOfPull" | "highRib" | "adjustableComb" | "safe" | "slot" | "holder" | "repairVendor";
 type TableColumnKey = "gauge" | "chokeType" | "type" | "owner" | "handedness" | "barrelLength" | "lengthOfPull" | "highRib" | "adjustableComb" | "safe" | "slot";
-const extraFilterOptions: Array<{ key: ExtraFilterField; label: string }> = [
-  { key: "gauge", label: "Gauge" }, { key: "chokeType", label: "Choke type" },
-  { key: "type", label: "Type" },
-  { key: "handedness", label: "Handedness" },
-  { key: "barrelLength", label: "Barrel length" },
-  { key: "lengthOfPull", label: "Length of pull" },
-  { key: "highRib", label: "High rib" },
-  { key: "adjustableComb", label: "Adjustable comb" },
-  { key: "safe", label: "Safe" },
-  { key: "slot", label: "Slot" },
-  { key: "holder", label: "Holder" },
-  { key: "repairVendor", label: "Repair vendor" },
-];
 const tableColumnOptions: Array<{ key: TableColumnKey; label: string }> = [
   { key: "gauge", label: "Gauge" }, { key: "chokeType", label: "Choke type" }, { key: "type", label: "Type" }, { key: "owner", label: "Owner" },
   { key: "handedness", label: "Handedness" }, { key: "barrelLength", label: "Barrel length" },
@@ -95,11 +81,6 @@ function gunSearchText(gun: Gun): string {
     .flatMap(([key, value]) => [key, value == null ? "" : String(value)])
     .join(" ")
     .toLowerCase();
-}
-
-function extraFilterValue(gun: Gun, field: ExtraFilterField): string {
-  const value = gun[field];
-  return value == null ? "" : String(value);
 }
 
 function tableColumnValue(gun: Gun, field: TableColumnKey): string {
@@ -375,8 +356,6 @@ function Inventory({
   const [ownerFilter, setOwnerFilter] = useState<"All" | "Beretta" | "DCA" | "Personal" | "Owner unknown">("All");
   const [locationFilter, setLocationFilter] = useState<"All locations" | "Safe 2" | "Safe 3" | "Safe 4" | "Safe 5" | "Safe 6" | "Safe 7" | "Unlocated/off-site">("All locations");
   const [searchQuery, setSearchQuery] = useState("");
-  const [extraFilters, setExtraFilters] = useState<Array<{ field: ExtraFilterField; value: string }>>([]);
-  const [filterFieldToAdd, setFilterFieldToAdd] = useState<ExtraFilterField>("gauge");
   const [visibleExtraColumns, setVisibleExtraColumns] = useState<TableColumnKey[]>([]);
   const [columnToAdd, setColumnToAdd] = useState<TableColumnKey>("gauge");
   const [showAddGun, setShowAddGun] = useState(false);
@@ -384,7 +363,7 @@ function Inventory({
   const [importPreview, setImportPreview] = useState<{ file: File; result: ImportPreview } | null>(null);
   const [importResult, setImportResult] = useState<ImportCommitResult | null>(null);
   const [importBusy, setImportBusy] = useState(false);
-  const [sort, setSort] = useState<{ key: "serial" | "gun" | "cadet" | "location" | "status" | "updated"; direction: "asc" | "desc" }>({ key: "serial", direction: "asc" });
+  const [sort, setSort] = useState<{ key: "serial" | "gun" | "cadet" | "location" | "status" | "updated" | TableColumnKey; direction: "asc" | "desc" }>({ key: "serial", direction: "asc" });
   const importInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     setLoading(true);
@@ -419,8 +398,7 @@ function Inventory({
       const matchesLocation = locationFilter === "All locations"
         || (locationFilter === "Unlocated/off-site" && !isStoredInSafe)
         || (locationFilter.startsWith("Safe ") && isStoredInSafe && knownSafe === Number(locationFilter.slice(5)));
-      const matchesExtra = extraFilters.every(({ field, value }) => !value.trim() || extraFilterValue(gun, field).toLowerCase().includes(value.trim().toLowerCase()));
-      return matchesSearch && matchesRegister && matchesOwner && matchesLocation && matchesExtra;
+      return matchesSearch && matchesRegister && matchesOwner && matchesLocation;
     });
     const valueFor = (gun: Gun): string => {
       switch (sort.key) {
@@ -429,6 +407,7 @@ function Inventory({
         case "location": return formatGunLocation(gun);
         case "status": return gun.status;
         case "updated": return gun.updatedAt;
+        case "gauge": case "chokeType": case "type": case "owner": case "handedness": case "barrelLength": case "lengthOfPull": case "highRib": case "adjustableComb": case "safe": case "slot": return tableColumnValue(gun, sort.key);
         default: return gun.serial;
       }
     };
@@ -436,14 +415,7 @@ function Inventory({
       const result = valueFor(left).localeCompare(valueFor(right), undefined, { numeric: true, sensitivity: "base" }) || left.serial.localeCompare(right.serial, undefined, { numeric: true, sensitivity: "base" });
       return sort.direction === "asc" ? result : -result;
     });
-  }, [guns, searchQuery, registerFilter, ownerFilter, locationFilter, extraFilters, sort]);
-  const availableExtraFilterOptions = extraFilterOptions.filter(({ key }) => !extraFilters.some((filter) => filter.field === key));
-  const addExtraFilter = () => {
-    if (!availableExtraFilterOptions.some(({ key }) => key === filterFieldToAdd)) return;
-    setExtraFilters((current) => [...current, { field: filterFieldToAdd, value: "" }]);
-    const next = availableExtraFilterOptions.find(({ key }) => key !== filterFieldToAdd);
-    if (next) setFilterFieldToAdd(next.key);
-  };
+  }, [guns, searchQuery, registerFilter, ownerFilter, locationFilter, sort]);
   const availableTableColumns = tableColumnOptions.filter(({ key }) => !visibleExtraColumns.includes(key));
   const addTableColumn = () => {
     if (!availableTableColumns.some(({ key }) => key === columnToAdd)) return;
@@ -690,33 +662,6 @@ function Inventory({
             </div>
           </div>
         </div>
-        <div className="extra-filter-row" aria-label="Additional inventory filters">
-          {extraFilters.map((filter, index) => {
-            const option = extraFilterOptions.find(({ key }) => key === filter.field);
-            return (
-              <label className="extra-filter" key={filter.field}>
-                <span>{option?.label}</span>
-                <input
-                  aria-label={`${option?.label} filter`}
-                  placeholder={`Filter ${option?.label?.toLowerCase()}`}
-                  value={filter.value}
-                  onChange={(event) => setExtraFilters((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, value: event.target.value } : item))}
-                />
-                <button type="button" className="extra-filter-remove" aria-label={`Remove ${option?.label} filter`} onClick={() => setExtraFilters((current) => current.filter((_, itemIndex) => itemIndex !== index))}>
-                  <X size={13} />
-                </button>
-              </label>
-            );
-          })}
-          {availableExtraFilterOptions.length > 0 && (
-            <div className="extra-filter-add">
-              <select aria-label="Additional filter field" value={filterFieldToAdd} onChange={(event) => setFilterFieldToAdd(event.target.value as ExtraFilterField)}>
-                {availableExtraFilterOptions.map(({ key, label }) => <option key={key} value={key}>{label}</option>)}
-              </select>
-              <button type="button" className="filter-button" onClick={addExtraFilter}><Plus size={14} /> Add filter</button>
-            </div>
-          )}
-        </div>
         <div className="extra-filter-row" aria-label="Inventory table columns">
           <span className="register-filter-label">Table columns</span>
           {visibleExtraColumns.map((column) => {
@@ -751,7 +696,10 @@ function Inventory({
                     </button>
                   </th>
                 ))}
-                {visibleExtraColumns.map((key) => <th key={key}>{tableColumnOptions.find((option) => option.key === key)?.label}</th>)}
+                {visibleExtraColumns.map((key) => {
+                  const label = tableColumnOptions.find((option) => option.key === key)?.label || key;
+                  return <th key={key} aria-sort={sort.key === key ? (sort.direction === "asc" ? "ascending" : "descending") : "none"}><button type="button" className="table-sort-button" onClick={() => changeSort(key)} aria-label={sortLabel(key, label)}>{label}<span aria-hidden="true">{sort.key === key ? (sort.direction === "asc" ? " ↑" : " ↓") : " ↕"}</span></button></th>;
+                })}
                 <th />
               </tr>
             </thead>
