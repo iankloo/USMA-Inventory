@@ -71,6 +71,10 @@ starts and its local health check passes. This is deliberately separate from
 the checkout's Git `HEAD`: a build can be interrupted after the checkout has
 been updated, and that must be retried rather than reported as deployed.
 
+The Docker image build is detached and polled through a per-run status file on
+the instance. A lost SSH session cannot leave Docker tied to a closed terminal;
+the script either proceeds after a completed build or prints its failure log.
+
 Preflight:
 
 ```sh

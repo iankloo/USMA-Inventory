@@ -110,8 +110,23 @@ fi
 echo "Deploying checkout $current_commit to runtime target $target_commit"
 sudo git reset --hard "$target_commit"
 
-# Build first, while the currently running API remains available.
-sudo docker compose build api
+# Build first, while the currently running API remains available. The build is
+# detached from the SSH stream so it survives a terminal or agent disconnect.
+build_log="$(sudo mktemp /tmp/arms-inventory-build.XXXXXX)"
+build_status="${build_log}.status"
+sudo sh -c 'cd "$1"; log="$2"; status="$3"; nohup sh -c "docker compose build api >\"$log\" 2>&1; printf \"%s\\n\" \"\$?\" >\"$status\"" </dev/null >/dev/null 2>&1 &' sh "$repository_dir" "$build_log" "$build_status"
+
+while [[ ! -f "$build_status" ]]; do
+  sleep 2
+done
+
+build_exit="$(sudo cat "$build_status")"
+if [[ "$build_exit" != "0" ]]; then
+  echo "Production image build failed; its log follows:" >&2
+  sudo tail -100 "$build_log" >&2
+  exit "$build_exit"
+fi
+sudo rm -f -- "$build_log" "$build_status"
 
 # The migration command is idempotent. It runs before the new API starts.
 sudo docker compose run --rm api npm run db:migrate

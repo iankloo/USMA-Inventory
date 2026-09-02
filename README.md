@@ -19,7 +19,8 @@ creates an instance, snapshot, or other AWS resource. See
 
 The server records the commit only after its rebuilt API has started and passed
 a local health check. That means a later run retries safely if a previous
-build was interrupted.
+build was interrupted. Its build is also detached from the SSH session, so a
+closed terminal does not leave the release half-built.
 
 ## Production access
 
