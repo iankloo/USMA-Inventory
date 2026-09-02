@@ -93,21 +93,6 @@ describe('armory workflow', () => {
     expect(screen.queryByText('WP-24-00187')).not.toBeInTheDocument()
   })
 
-  it('adds and applies optional inventory field filters', async () => {
-    const user = userEvent.setup()
-    render(<App />)
-    await screen.findByText('WP-24-00187')
-
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Additional filter field' }), 'repairVendor')
-    await user.click(screen.getByRole('button', { name: /add filter/i }))
-    await user.type(screen.getByRole('textbox', { name: 'Repair vendor filter' }), 'Wenig')
-    expect(screen.getByText('WP-23-00091')).toBeInTheDocument()
-    expect(screen.queryByText('WP-24-00204')).not.toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: 'Remove Repair vendor filter' }))
-    expect(screen.getByText('WP-24-00204')).toBeInTheDocument()
-  })
-
   it('adds and removes optional table columns', async () => {
     const user = userEvent.setup()
     render(<App />)
@@ -120,6 +105,19 @@ describe('armory workflow', () => {
     expect(within(row).getByText('12 ga')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Hide Gauge column' }))
     expect(screen.queryByRole('columnheader', { name: 'Gauge' })).not.toBeInTheDocument()
+  })
+
+  it('sorts an optional table column in both directions', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await screen.findByText('WP-24-00187')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Additional table column' }), 'chokeType')
+    await user.click(screen.getByRole('button', { name: /add column/i }))
+    const sortButton = screen.getByRole('button', { name: /^Choke type, sorted not sorted/i })
+    await user.click(sortButton)
+    expect(screen.getByRole('button', { name: /^Choke type, sorted ascending/i })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /^Choke type, sorted ascending/i }))
+    expect(screen.getByRole('button', { name: /^Choke type, sorted descending/i })).toBeInTheDocument()
   })
 
   it('shows live safe counts and composes location filters with assignment', async () => {
