@@ -14,6 +14,7 @@ This package is the backend boundary for the skeet and trap inventory app. It is
 - Migration `0005_storage_slot_limit` updates the database slot check to match the supported 1–28 range. Apply pending migrations before importing locations in slots 25–28.
 - `POST /api/guns/:serial/custody/:custodyId/return` requires `{ "safe": 2-7, "slot": 1-28 }` and returns `{ custody, gun }`; a repeated/concurrent return returns `409 CUSTODY_CLOSED`.
 - Safe/slot is single-occupancy for active stored guns. Create, import, move, and return operations return `409 LOCATION_OCCUPIED` when a concurrent or existing stored gun already claims the requested location.
+- `POST /api/guns/:serial/fitter-assignment` atomically assigns an active, stored, currently unassigned gun and places it in a supplied safe/slot. It accepts `{ cadetName, cadetId?, safe: 2-7, slot: 1-28 }`, applies the same single-occupancy invariant, and appends `GUN_FITTER_ASSIGNED` to the immutable activity history.
 - Checkout and repair preserve the gun's last stored location. Return accepts an optional body `{ "safe": 2-7, "slot": 1-28 }`; with no body it returns to that preserved location, while a supplied location is an explicit override. If no preserved location exists, return requires a location and returns `400 RETURN_LOCATION_REQUIRED`.
 - `GET /api/audits/:id` includes each snapshot item's serial, resolution state, current gun state, location, active custody records, and active cadet assignment.
 - Reconciliation accepts `{ sourceName, serials }` after a human has reviewed extraction. It stores normalized serials and comparison results, not the PDF. This keeps the source document discardable and makes the comparison deterministic.
@@ -44,7 +45,7 @@ Named account administrators manage the local account registry through `GET /api
 - `POST /api/guns/import/preview` (also `/api/imports/guns/preview`) — upload raw `text/csv` or XLSX bytes and receive `{ valid, rows, issues, summary }`; use `?mode=create-only` to reject existing serials. JSON `{ content: "..." }` is supported for local API clients.
 - `POST /api/guns/import/commit` (also `/api/imports/guns/commit`) — accepts the same file body and mode, commits only a valid preview, and returns `{ imported, created, updated, rows }`. Each created/updated gun gets an actor-attributed immutable activity event.
 - `PATCH /api/guns/:serial/archive`
-- `POST /api/guns/:serial/location`, `/assignment`, `/checkout`, `/repair`
+- `POST /api/guns/:serial/location`, `/assignment`, `/fitter-assignment`, `/checkout`, `/repair`
 - `POST /api/guns/:serial/custody/:custodyId/return` — optional body `{ safe, slot }`; omitted body uses the gun's preserved last stored location.
 - `POST /api/audits` — body `{ name }`; snapshots active guns.
 - `POST /api/audits/:id/start` — starts a pre-created draft audit and snapshots active guns; normal creation already performs this transition atomically.

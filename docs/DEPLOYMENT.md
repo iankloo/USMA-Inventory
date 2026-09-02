@@ -53,6 +53,33 @@ Do not create a replacement instance, snapshot, or temporary clone without expli
 
 The desired revision is the current GitHub `main` branch. A normal deployment must happen in place on the production instance; it must not require a second Lightsail instance.
 
+For normal releases from this Mac, use the guarded automation from the repository root:
+
+```sh
+scripts/deploy-lightsail.sh --yes
+```
+
+It is intentionally opt-in (`--yes`), checks the expected Lightsail instance
+and static IP before connecting, preserves the known untracked server
+configuration, refuses tracked checkout changes, builds before replacing the
+API, and verifies the public health endpoint afterward. It creates no AWS
+resources. Environment-variable overrides exist for recovery only; do not use
+them for routine production deployments.
+
+The script writes `/opt/arms-inventory/.deployed-commit` only after the new API
+starts and its local health check passes. This is deliberately separate from
+the checkout's Git `HEAD`: a build can be interrupted after the checkout has
+been updated, and that must be retried rather than reported as deployed.
+
+The Docker image build is detached and polled through a per-run status file on
+the instance. A lost SSH session cannot leave Docker tied to a closed terminal;
+the script either proceeds after a completed build or prints its failure log.
+If a session ends before the release finishes, the deployment record remains
+unchanged so the next run safely retries rather than claiming success.
+It intentionally uses Docker's legacy builder (`DOCKER_BUILDKIT=0`) because the
+current Lightsail Docker daemon intermittently stalls during BuildKit's final
+image export.
+
 Preflight:
 
 ```sh

@@ -17,6 +17,8 @@ const HEADER_ALIASES = {
     lengthofpull: "lengthOfPull",
     length_of_pull: "lengthOfPull",
     handedness: "handedness",
+    adjustablecomb: "adjustableComb",
+    adjustable_comb: "adjustableComb",
     type: "type",
     modeltype: "modelType",
     model_type: "modelType",
@@ -142,6 +144,9 @@ function rowFromRecord(record, rowNumber) {
     const highRib = parseBoolean(record.highRib);
     if (highRib === "invalid")
         issues.push({ row: rowNumber, field: "highRib", code: "invalid-boolean", message: "High-rib must be yes/no or true/false." });
+    const adjustableComb = parseBoolean(record.adjustableComb);
+    if (adjustableComb === "invalid")
+        issues.push({ row: rowNumber, field: "adjustableComb", code: "invalid-boolean", message: "Adjustable comb must be yes/no or true/false." });
     if (issues.some((issue) => issue.field === "serialNumber" && issue.code !== "duplicate-serial"))
         return { issues };
     return {
@@ -153,6 +158,7 @@ function rowFromRecord(record, rowNumber) {
             barrelLength: String(record.barrelLength ?? "").trim() || undefined,
             lengthOfPull: String(record.lengthOfPull ?? "").trim() || undefined,
             handedness: String(record.handedness ?? "").trim() || undefined,
+            adjustableComb: adjustableComb === "invalid" ? undefined : adjustableComb,
             type: type,
             modelType: legacyModelType || undefined,
             highRib: highRib === "invalid" ? undefined : highRib,

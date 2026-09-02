@@ -13,6 +13,7 @@ export const gunInputSchema = z.object({
   barrelLength: z.number().positive().max(100).optional(),
   lengthOfPull: z.number().positive().max(100).optional(),
   handedness: handednessSchema,
+  adjustableComb: z.boolean().nullable().optional(),
   type: gunTypeSchema.nullable().optional(),
   highRib: z.boolean().nullable().optional(),
   safe: z.number().int().min(2).max(7).optional(),
@@ -31,6 +32,7 @@ export const gunDetailsUpdateSchema = z.object({
   barrelLength: z.number().positive().max(100).nullable().optional(),
   lengthOfPull: z.number().positive().max(100).nullable().optional(),
   handedness: handednessValueSchema.nullable().optional(),
+  adjustableComb: z.boolean().nullable().optional(),
   type: gunTypeSchema.nullable().optional(),
   highRib: z.boolean().nullable().optional()
 }).strict().refine((value) => Object.keys(value).length > 0, "At least one descriptive field is required");
@@ -61,6 +63,10 @@ export const returnLocationSchema = z.object({
   }
 }).optional();
 export const assignmentSchema = z.object({ cadetName: z.string().trim().min(1).max(160), cadetId: z.string().trim().max(80).optional() });
+export const fitterAssignmentSchema = assignmentSchema.extend({
+  safe: z.number().int().min(2).max(7),
+  slot: z.number().int().min(1).max(28),
+});
 export const userCreateSchema = z.object({
   cognitoSubject: z.string().trim().min(1).max(200),
   email: z.string().trim().email(),

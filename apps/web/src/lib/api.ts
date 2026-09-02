@@ -108,6 +108,11 @@ export const api: ApiClient = {
     });
     return api.getGun(serial);
   },
+  assignFittedGun: async (serial, input) => normalizeGun(
+    await request<unknown>(`/guns/${encodeURIComponent(serial)}/fitter-assignment`, {
+      method: "POST", body: JSON.stringify(input),
+    }),
+  ),
   unassignCadet: async (serial) => {
     await request<unknown>(`/guns/${encodeURIComponent(serial)}/assignment`, {
       method: "DELETE",
@@ -260,9 +265,10 @@ function normalizeGun(raw: any): Gun {
     handedness:
       raw.handedness === "LEFT"
         ? "Left"
-        : raw.handedness === "AMBIDEXTROUS"
-          ? "Ambidextrous"
+        : raw.handedness === "AMBIDEXTROUS" || raw.handedness === "NEUTRAL"
+          ? "Neutral"
           : "Right",
+    adjustableComb: raw.adjustableComb == null ? null : Boolean(raw.adjustableComb),
     type:
       raw.type == null || String(raw.type).trim() === ""
         ? null
@@ -447,6 +453,7 @@ export function createDemoApi(): ApiClient {
       barrelLength: "30 in",
       lengthOfPull: "14 3/8 in",
       handedness: "Right",
+      adjustableComb: true,
       type: "Skeet",
       highRib: false,
       status: "Stored",
@@ -465,6 +472,7 @@ export function createDemoApi(): ApiClient {
       barrelLength: "30 in",
       lengthOfPull: "14 1/4 in",
       handedness: "Right",
+      adjustableComb: false,
       type: "Skeet",
       highRib: false,
       status: "Checked out",
@@ -483,6 +491,7 @@ export function createDemoApi(): ApiClient {
       barrelLength: "30 in",
       lengthOfPull: "14 1/2 in",
       handedness: "Left",
+      adjustableComb: true,
       type: "Trap",
       highRib: true,
       status: "In repair",
@@ -501,6 +510,7 @@ export function createDemoApi(): ApiClient {
       barrelLength: "32 in",
       lengthOfPull: "14 3/8 in",
       handedness: "Right",
+      adjustableComb: true,
       type: "Sporting",
       highRib: true,
       status: "Stored",
@@ -508,7 +518,6 @@ export function createDemoApi(): ApiClient {
       slot: 21,
       defaultSafe: 6,
       defaultSlot: 21,
-      assignedCadet: "M. Patel",
       updatedAt: "Aug 14, 11:22",
     },
     {
@@ -519,6 +528,7 @@ export function createDemoApi(): ApiClient {
       barrelLength: "30 in",
       lengthOfPull: "14 1/4 in",
       handedness: "Right",
+      adjustableComb: null,
       type: "Skeet",
       highRib: false,
       status: "Stored",
@@ -568,13 +578,14 @@ export function createDemoApi(): ApiClient {
         serial: input.serialNumber.trim().toUpperCase(),
         model: input.model,
         gauge: input.gauge ?? null,
+        owner: input.owner ?? null,
         barrelLength: input.barrelLength ? `${input.barrelLength} in` : "",
         lengthOfPull: input.lengthOfPull ? `${input.lengthOfPull} in` : "",
         handedness:
           input.handedness === "LEFT"
             ? "Left"
             : input.handedness === "AMBIDEXTROUS"
-              ? "Ambidextrous"
+              ? "Neutral"
               : "Right",
         type:
           input.type == null
@@ -585,6 +596,7 @@ export function createDemoApi(): ApiClient {
                 ? "Sporting"
                 : "Skeet",
         highRib: input.highRib ?? null,
+        adjustableComb: input.adjustableComb ?? null,
         status: "Stored",
         safe: input.safe,
         slot: input.slot,
@@ -608,10 +620,11 @@ export function createDemoApi(): ApiClient {
       if (input.barrelLength !== undefined) gun.barrelLength = input.barrelLength == null ? "" : `${input.barrelLength} in`;
       if (input.lengthOfPull !== undefined) gun.lengthOfPull = input.lengthOfPull == null ? "" : `${input.lengthOfPull} in`;
       if (input.handedness !== undefined) {
-        gun.handedness = input.handedness === "LEFT" ? "Left" : input.handedness === "AMBIDEXTROUS" ? "Ambidextrous" : "Right";
+        gun.handedness = input.handedness === "LEFT" ? "Left" : input.handedness === "AMBIDEXTROUS" ? "Neutral" : "Right";
       }
       if (input.type !== undefined) gun.type = input.type == null ? null : input.type === "TRAP" ? "Trap" : input.type === "SPORTING" ? "Sporting" : "Skeet";
       if (input.highRib !== undefined) gun.highRib = input.highRib;
+      if (input.adjustableComb !== undefined) gun.adjustableComb = input.adjustableComb;
       gun.updatedAt = "Just now";
       const changed = [
         before.model !== gun.model && "model",
@@ -622,6 +635,7 @@ export function createDemoApi(): ApiClient {
         before.handedness !== gun.handedness && "handedness",
         before.type !== gun.type && "type",
         before.highRib !== gun.highRib && "high-rib",
+        before.adjustableComb !== gun.adjustableComb && "adjustable comb",
       ].filter(Boolean).join(", ");
       detailHistory.set(serial, [{
         id: `details-${Date.now()}`,
@@ -633,6 +647,18 @@ export function createDemoApi(): ApiClient {
         detail: changed ? `Updated ${changed}` : "Gun details updated",
         tone: "success",
       }, ...(detailHistory.get(serial) || [])]);
+      return gun;
+    },
+    async assignFittedGun(serial, input) {
+      const gun = guns.find((item) => item.serial === serial);
+      if (!gun) throw new Error("Gun not found");
+      if (gun.status !== "Stored" || gun.assignedCadet) throw new Error("This gun is no longer assignable; refresh Gun Fitter and try again");
+      gun.assignedCadet = input.cadetName;
+      gun.safe = input.safe;
+      gun.slot = input.slot;
+      gun.defaultSafe = input.safe;
+      gun.defaultSlot = input.slot;
+      gun.updatedAt = "Just now";
       return gun;
     },
     async archiveGun(serial, justification) {
@@ -827,7 +853,7 @@ export function createDemoApi(): ApiClient {
           if (row.gauge) existing.gauge = row.gauge;
           updated += 1;
         } else {
-          guns.push({ serial: row.serialNumber, model: row.model || "Imported gun", gauge: row.gauge || "", barrelLength: "", lengthOfPull: "", handedness: "Right", type: row.type === "trap" ? "Trap" : row.type === "sporting" ? "Sporting" : "Skeet", highRib: false, status: "Stored", updatedAt: "Just now" });
+          guns.push({ serial: row.serialNumber, model: row.model || "Imported gun", gauge: row.gauge || "", barrelLength: "", lengthOfPull: "", handedness: "Right", adjustableComb: null, type: row.type === "trap" ? "Trap" : row.type === "sporting" ? "Sporting" : "Skeet", highRib: false, status: "Stored", updatedAt: "Just now" });
           created += 1;
         }
       }

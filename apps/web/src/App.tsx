@@ -63,7 +63,7 @@ const initialAuthState = getInitialAuthState(
   new URLSearchParams(window.location.search).has("code"),
 );
 
-const MAIN_NAV_PAGES = ["inventory", "archived", "audits", "people", "history"] as const;
+const MAIN_NAV_PAGES = ["inventory", "fitter", "archived", "audits", "people", "history"] as const;
 type MainNavPage = (typeof MAIN_NAV_PAGES)[number];
 const LAST_MAIN_NAV_PAGE_KEY = "skeet-inventory:last-main-nav-page";
 
@@ -145,6 +145,7 @@ function Shell({
   const [mobileNav, setMobileNav] = useState(false);
   const navItems = [
     { id: "inventory", label: "Inventory", icon: LayoutGrid },
+    { id: "fitter", label: "Gun Fitter", icon: SlidersHorizontal },
     { id: "archived", label: "Archived guns", icon: Archive },
     { id: "audits", label: "Audits", icon: ClipboardCheck },
     { id: "people", label: "People", icon: UsersRound },
@@ -218,6 +219,8 @@ function Shell({
             <b>
               {page === "inventory"
                 ? "Inventory"
+                : page === "fitter"
+                  ? "Gun Fitter"
                 : page[0].toUpperCase() + page.slice(1)}
             </b>
           </div>
@@ -747,6 +750,142 @@ function Inventory({
   );
 }
 
+function GunFitter({
+  onSelectGun,
+  refreshToken = 0,
+}: {
+  onSelectGun: (gun: Gun) => void;
+  refreshToken?: number;
+}) {
+  const [guns, setGuns] = useState<Gun[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const [ownerFilter, setOwnerFilter] = useState<"Beretta" | "Beretta and DCA" | "All owners">("Beretta");
+  const [handedness, setHandedness] = useState<"All" | Gun["handedness"]>("All");
+  const [comb, setComb] = useState<"All" | "Yes" | "No" | "Unknown">("All");
+  const [minimumPull, setMinimumPull] = useState("");
+  const [maximumPull, setMaximumPull] = useState("");
+  const [assigningGun, setAssigningGun] = useState<Gun | null>(null);
+  const [sort, setSort] = useState<{ key: "gun" | "serial" | "owner" | "handedness" | "pull" | "comb" | "location"; direction: "asc" | "desc" }>({ key: "serial", direction: "asc" });
+
+  useEffect(() => {
+    setLoading(true);
+    setError("");
+    client.listGuns()
+      .then(setGuns)
+      .catch((caught) => setError(caught instanceof Error ? caught.message : "Unable to load guns for fitting"))
+      .finally(() => setLoading(false));
+  }, [refreshToken]);
+
+  const assignableGuns = useMemo(() => guns.filter((gun) => gun.status === "Stored" && !gun.assignedCadet), [guns]);
+  const displayedGuns = useMemo(() => {
+    const min = minimumPull === "" ? undefined : Number(minimumPull);
+    const max = maximumPull === "" ? undefined : Number(maximumPull);
+    const filtered = assignableGuns.filter((gun) => {
+      const owner = gun.owner?.trim().toLowerCase();
+      const matchesOwner = ownerFilter === "Beretta"
+        ? owner === "beretta"
+        : ownerFilter === "Beretta and DCA"
+          ? owner === "beretta" || owner === "dca"
+          : true;
+      const pull = (() => {
+        try { return parseMeasurementInput(gun.lengthOfPull, "Length of pull"); } catch { return null; }
+      })();
+      const matchesPull = (min === undefined || (pull != null && pull >= min))
+        && (max === undefined || (pull != null && pull <= max));
+      const matchesComb = comb === "All" || (comb === "Unknown" ? gun.adjustableComb == null : comb === "Yes" ? gun.adjustableComb === true : gun.adjustableComb === false);
+      const search = query.trim().toLowerCase();
+      const matchesSearch = !search || [gun.serial, gun.model, gun.gauge, gun.owner].some((value) => value?.toLowerCase().includes(search));
+      return matchesOwner && (handedness === "All" || gun.handedness === handedness) && matchesComb && matchesPull && matchesSearch;
+    });
+    const valueFor = (gun: Gun): string => {
+      switch (sort.key) {
+        case "gun": return `${gun.model} ${gun.gauge || ""} ${gun.type || ""}`;
+        case "owner": return gun.owner || "";
+        case "handedness": return gun.handedness;
+        case "pull": return gun.lengthOfPull || "";
+        case "comb": return gun.adjustableComb == null ? "Unknown" : gun.adjustableComb ? "Yes" : "No";
+        case "location": return formatGunLocation(gun);
+        default: return gun.serial;
+      }
+    };
+    return [...filtered].sort((left, right) => {
+      const result = valueFor(left).localeCompare(valueFor(right), undefined, { numeric: true, sensitivity: "base" }) || left.serial.localeCompare(right.serial, undefined, { numeric: true, sensitivity: "base" });
+      return sort.direction === "asc" ? result : -result;
+    });
+  }, [assignableGuns, comb, handedness, maximumPull, minimumPull, ownerFilter, query, sort]);
+  const changeSort = (key: typeof sort.key) => setSort((current) => current.key === key ? { key, direction: current.direction === "asc" ? "desc" : "asc" } : { key, direction: "asc" });
+  const sortLabel = (key: typeof sort.key, label: string) => `${label}, sorted ${sort.key === key ? (sort.direction === "asc" ? "ascending" : "descending") : "not sorted"}`;
+  const resetFilters = () => {
+    setQuery(""); setOwnerFilter("Beretta"); setHandedness("All"); setComb("All"); setMinimumPull(""); setMaximumPull("");
+  };
+
+  return (
+    <div className="page-wrap">
+      <div className="page-heading">
+        <div>
+          <p className="eyebrow">SHOOTER MATCHING</p>
+          <h1>Gun Fitter</h1>
+          <p className="subheading">Find an available gun by fit. Only stored, unassigned guns are shown.</p>
+        </div>
+      </div>
+      <section className="fitter-summary" aria-label="Assignable gun summary">
+        <div><strong>{displayedGuns.length}</strong><span>assignable guns</span></div>
+        <p>Showing <b>{ownerFilter === "Beretta" ? "Beretta-owned guns" : ownerFilter === "Beretta and DCA" ? "Beretta and DCA guns" : "all owners"}</b>. DCA guns are available only when you include them.</p>
+      </section>
+      <div className="fitter-filters" aria-label="Gun fitting filters">
+        <div className="search-wrap"><Search size={17} /><input aria-label="Search assignable guns" placeholder="Search serial, model, or owner" value={query} onChange={(event) => setQuery(event.target.value)} /></div>
+        <label>Owner<select aria-label="Owner availability" value={ownerFilter} onChange={(event) => setOwnerFilter(event.target.value as typeof ownerFilter)}><option>Beretta</option><option>Beretta and DCA</option><option>All owners</option></select></label>
+        <label>Hand<select aria-label="Handedness" value={handedness} onChange={(event) => setHandedness(event.target.value as typeof handedness)}><option value="All">All hands</option><option value="Right">Right</option><option value="Left">Left</option><option value="Neutral">Neutral</option></select></label>
+        <label>Length of pull, in<div className="fitter-range"><input aria-label="Minimum length of pull" type="number" min="1" max="100" step="0.125" placeholder="Min" value={minimumPull} onChange={(event) => setMinimumPull(event.target.value)} /><span>–</span><input aria-label="Maximum length of pull" type="number" min="1" max="100" step="0.125" placeholder="Max" value={maximumPull} onChange={(event) => setMaximumPull(event.target.value)} /></div></label>
+        <label>Adjustable comb<select aria-label="Adjustable comb" value={comb} onChange={(event) => setComb(event.target.value as typeof comb)}><option value="All">Any</option><option value="Yes">Yes</option><option value="No">No</option><option value="Unknown">Unknown</option></select></label>
+        <button type="button" className="button button-secondary fitter-reset" onClick={resetFilters}>Reset</button>
+      </div>
+      {error && <div className="scan-message error" role="alert">{error}</div>}
+      <div className="section-heading"><div><h2>Available matches</h2><span className="muted">{displayedGuns.length} gun{displayedGuns.length === 1 ? "" : "s"} meet these filters</span></div></div>
+      <div className="table-card"><div className="table-scroll"><table className="fitter-table"><thead><tr>
+        {([["gun", "Gun"], ["serial", "Serial number"], ["owner", "Owner"], ["handedness", "Hand"], ["pull", "Length of pull"], ["comb", "Adjustable comb"], ["location", "Location"]] as const).map(([key, label]) => <th key={key} aria-sort={sort.key === key ? (sort.direction === "asc" ? "ascending" : "descending") : "none"}><button type="button" className="table-sort-button" onClick={() => changeSort(key)} aria-label={sortLabel(key, label)}>{label}<span aria-hidden="true">{sort.key === key ? (sort.direction === "asc" ? " ↑" : " ↓") : " ↕"}</span></button></th>)}
+        <th />
+      </tr></thead><tbody>
+        {loading ? <tr><td colSpan={8} className="table-state"><LoaderCircle className="spin" /> Loading fit inventory…</td></tr>
+          : displayedGuns.length === 0 ? <tr><td colSpan={8} className="table-state">No assignable guns match these filters.</td></tr>
+            : displayedGuns.map((gun) => <tr key={gun.serial} onClick={() => onSelectGun(gun)} tabIndex={0} onKeyDown={(event) => event.key === "Enter" && onSelectGun(gun)}><td><strong>{gun.model}</strong><small className="table-secondary">{gun.gauge || "Gauge unknown"} · {gun.type || "Type unknown"}</small></td><td><button className="serial-link" onClick={(event) => { event.stopPropagation(); onSelectGun(gun); }}>{gun.serial}</button></td><td>{gun.owner || "Unknown"}</td><td><Badge tone={gun.handedness === "Left" ? "blue" : gun.handedness === "Neutral" ? "gray" : "green"}>{gun.handedness}</Badge></td><td>{gun.lengthOfPull || "Unknown"}</td><td>{gun.adjustableComb == null ? "Unknown" : gun.adjustableComb ? "Yes" : "No"}</td><td><span className="location"><MapPin size={14} />{formatGunLocation(gun)}</span></td><td><button className="button button-secondary fitter-assign" aria-label={`Assign ${gun.serial}`} onClick={(event) => { event.stopPropagation(); setAssigningGun(gun); }}>Assign</button><button className="row-chevron" aria-label={`Open ${gun.serial}`} onClick={(event) => { event.stopPropagation(); onSelectGun(gun); }}><ArrowRight size={16} /></button></td></tr>)}</tbody></table></div><div className="table-footer"><span>All listed guns are stored and not assigned to a cadet.</span></div></div>
+      {assigningGun && <FitterAssignmentModal gun={assigningGun} inventory={guns} onClose={() => setAssigningGun(null)} onSaved={(updated) => { setGuns((current) => current.map((gun) => gun.serial === updated.serial ? updated : gun)); setAssigningGun(null); }} />}
+    </div>
+  );
+}
+
+function FitterAssignmentModal({ gun, inventory, onClose, onSaved }: { gun: Gun; inventory: Gun[]; onClose: () => void; onSaved: (gun: Gun) => void }) {
+  const [cadetName, setCadetName] = useState("");
+  const [safe, setSafe] = useState(String(gun.safe ?? gun.reportedSafe ?? ""));
+  const [slot, setSlot] = useState(String(gun.slot ?? ""));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const availableSlotsBySafe = useMemo(() => new Map([2, 3, 4, 5, 6, 7].map((safeNumber) => [
+    safeNumber,
+    Array.from({ length: 28 }, (_, index) => index + 1).filter((slotNumber) => !inventory.some((item) => item.serial !== gun.serial && item.status === "Stored" && item.safe === safeNumber && item.slot === slotNumber)),
+  ])), [gun.serial, inventory]);
+  const availableSafes = Array.from(availableSlotsBySafe.entries()).filter(([, slots]) => slots.length > 0).map(([safeNumber]) => safeNumber);
+  const availableSlots = availableSlotsBySafe.get(Number(safe)) || [];
+  useEffect(() => {
+    if (!availableSlots.includes(Number(slot))) setSlot(availableSlots[0] == null ? "" : String(availableSlots[0]));
+  }, [availableSlots, slot]);
+  const save = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaving(true); setError("");
+    try { onSaved(await client.assignFittedGun(gun.serial, { cadetName: cadetName.trim(), safe: Number(safe), slot: Number(slot) })); }
+    catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to assign gun"); }
+    finally { setSaving(false); }
+  };
+  return <div className="modal-backdrop"><form className="modal fitter-assignment-modal" role="dialog" aria-modal="true" aria-labelledby="fitter-assignment-title" onSubmit={save}>
+    <div className="modal-icon"><UsersRound size={21} /></div><button type="button" className="modal-close" onClick={onClose} aria-label="Close gun assignment"><X size={18} /></button>
+    <h2 id="fitter-assignment-title">Assign fitted gun</h2><p><b>{gun.model}</b> · {gun.serial}. This will assign the gun and set its storage location together.</p>
+    <div className="form-grid"><label className="full-field">Cadet shooter<input required aria-label="Cadet shooter" value={cadetName} onChange={(event) => setCadetName(event.target.value)} autoFocus placeholder="Name" /></label><label>Safe<select required aria-label="Safe" value={safe} onChange={(event) => setSafe(event.target.value)}><option value="">Select safe</option>{availableSafes.map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label>Slot<select required aria-label="Slot" value={slot} onChange={(event) => setSlot(event.target.value)} disabled={!safe}><option value="">Select slot</option>{availableSlots.map((value) => <option key={value} value={value}>{value}</option>)}</select></label></div>
+    {error && <div className="scan-message error" role="alert">{error}</div>}<div className="modal-actions"><button type="button" className="button button-secondary" onClick={onClose}>Cancel</button><button className="button button-primary" disabled={saving || !cadetName.trim() || !safe || !slot}>{saving ? <LoaderCircle className="spin" size={15} /> : <Check size={15} />} Assign gun</button></div>
+  </form></div>;
+}
+
 function AddGunModal({
   onClose,
   onSave,
@@ -763,6 +902,7 @@ function AddGunModal({
   const [handedness, setHandedness] = useState<CreateGunInput["handedness"]>("RIGHT");
   const [type, setType] = useState<CreateGunInput["type"]>("SKEET");
   const [highRib, setHighRib] = useState(false);
+  const [adjustableComb, setAdjustableComb] = useState(false);
   const [safe, setSafe] = useState("");
   const [slot, setSlot] = useState("");
   const [saving, setSaving] = useState(false);
@@ -780,6 +920,7 @@ function AddGunModal({
         handedness,
         type,
         highRib,
+        adjustableComb,
         safe: safe ? Number(safe) : undefined,
         slot: slot ? Number(slot) : undefined,
       });
@@ -802,8 +943,9 @@ function AddGunModal({
           <label>Type<select value={type ?? ""} onChange={(event) => setType(event.target.value as CreateGunInput["type"])}><option value="SKEET">Skeet</option><option value="TRAP">Trap</option><option value="SPORTING">Sporting</option></select></label>
           <label>Barrel length (in)<input type="number" min="1" step="any" value={barrelLength} onChange={(event) => setBarrelLength(event.target.value)} /></label>
           <label>Length of pull (in)<input type="number" min="1" step="any" value={lengthOfPull} onChange={(event) => setLengthOfPull(event.target.value)} /></label>
-          <label>Handedness<select value={handedness} onChange={(event) => setHandedness(event.target.value as CreateGunInput["handedness"])}><option value="RIGHT">Right</option><option value="LEFT">Left</option><option value="AMBIDEXTROUS">Ambidextrous</option></select></label>
+          <label>Handedness<select value={handedness} onChange={(event) => setHandedness(event.target.value as CreateGunInput["handedness"])}><option value="RIGHT">Right</option><option value="LEFT">Left</option><option value="AMBIDEXTROUS">Neutral</option></select></label>
           <label className="checkbox-field"><input type="checkbox" checked={highRib} onChange={(event) => setHighRib(event.target.checked)} /> High-rib</label>
+          <label className="checkbox-field"><input type="checkbox" checked={adjustableComb} onChange={(event) => setAdjustableComb(event.target.checked)} /> Adjustable comb</label>
           <label>Safe (optional)<select value={safe} onChange={(event) => setSafe(event.target.value)}><option value="">Not in storage</option>{[2,3,4,5,6,7].map((value) => <option key={value}>{value}</option>)}</select></label>
           <label>Slot (optional)<input type="number" min="1" max="28" value={slot} onChange={(event) => setSlot(event.target.value)} /></label>
         </div>
@@ -1025,6 +1167,7 @@ function GunDrawer({
                 <InfoRow label="Barrel" value={gun.barrelLength} />
                 <InfoRow label="Length of pull" value={gun.lengthOfPull} />
                 <InfoRow label="Handedness" value={gun.handedness} />
+                <InfoRow label="Adjustable comb" value={gun.adjustableComb == null ? "Unknown" : gun.adjustableComb ? "Yes" : "No"} />
                 <InfoRow label="High-rib" value={gun.highRib == null ? "Unknown" : gun.highRib ? "Yes" : "No"} />
               </div>
             </DetailBlock>
@@ -1187,9 +1330,10 @@ function FormModal({
   const [owner, setOwner] = useState(gun.owner || "");
   const [barrelLength, setBarrelLength] = useState(measurementInput(gun.barrelLength));
   const [lengthOfPull, setLengthOfPull] = useState(measurementInput(gun.lengthOfPull));
-  const [handedness, setHandedness] = useState(gun.handedness === "Left" ? "LEFT" : gun.handedness === "Ambidextrous" ? "AMBIDEXTROUS" : "RIGHT");
+  const [handedness, setHandedness] = useState(gun.handedness === "Left" ? "LEFT" : gun.handedness === "Neutral" ? "AMBIDEXTROUS" : "RIGHT");
   const [gunType, setGunType] = useState(gun.type === "Trap" ? "TRAP" : gun.type === "Sporting" ? "SPORTING" : gun.type === "Skeet" ? "SKEET" : "");
   const [highRib, setHighRib] = useState(gun.highRib == null ? "" : gun.highRib ? "yes" : "no");
+  const [adjustableComb, setAdjustableComb] = useState(gun.adjustableComb == null ? "" : gun.adjustableComb ? "yes" : "no");
   const [person, setPerson] = useState("");
   const [cadet, setCadet] = useState(gun.assignedCadet || "");
   const [note, setNote] = useState("");
@@ -1213,6 +1357,7 @@ function FormModal({
           handedness: handedness as "RIGHT" | "LEFT" | "AMBIDEXTROUS",
           type: gunType ? gunType as "SKEET" | "TRAP" | "SPORTING" : null,
           highRib: highRib === "" ? null : highRib === "yes",
+          adjustableComb: adjustableComb === "" ? null : adjustableComb === "yes",
         });
       } else if (type === "location") {
         updated = await client.updateLocation(gun.serial, { safe: Number(safe), slot: Number(slot) });
@@ -1267,7 +1412,7 @@ function FormModal({
               <select value={handedness} onChange={(event) => setHandedness(event.target.value)}>
                 <option value="RIGHT">Right</option>
                 <option value="LEFT">Left</option>
-                <option value="AMBIDEXTROUS">Ambidextrous</option>
+                <option value="AMBIDEXTROUS">Neutral</option>
               </select>
             </label>
             <label>
@@ -1286,6 +1431,14 @@ function FormModal({
             <label>
               High-rib
               <select value={highRib} onChange={(event) => setHighRib(event.target.value)}>
+                <option value="">Unknown</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </label>
+            <label>
+              Adjustable comb
+              <select value={adjustableComb} onChange={(event) => setAdjustableComb(event.target.value)}>
                 <option value="">Unknown</option>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
@@ -2399,6 +2552,8 @@ function App() {
         />
       ) : page === "inventory" ? (
         <Inventory onSelectGun={setSelectedGun} onStartAudit={() => setShowStartAudit(true)} refreshToken={inventoryRefresh} />
+      ) : page === "fitter" ? (
+        <GunFitter onSelectGun={setSelectedGun} refreshToken={inventoryRefresh} />
       ) : page === "archived" ? (
         <ArchivedGuns onSelectGun={setSelectedGun} refreshToken={inventoryRefresh} />
       ) : page === "audits" ? (

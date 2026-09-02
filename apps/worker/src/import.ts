@@ -8,6 +8,7 @@ export type GunImportRow = {
   barrelLength?: string;
   lengthOfPull?: string;
   handedness?: string;
+  adjustableComb?: boolean;
   type?: "skeet" | "trap" | "sporting";
   modelType?: string;
   highRib?: boolean;
@@ -76,6 +77,8 @@ const HEADER_ALIASES: Record<string, keyof GunImportRow> = {
   lengthofpull: "lengthOfPull",
   length_of_pull: "lengthOfPull",
   handedness: "handedness",
+  adjustablecomb: "adjustableComb",
+  adjustable_comb: "adjustableComb",
   type: "type",
   modeltype: "modelType",
   model_type: "modelType",
@@ -192,6 +195,8 @@ function rowFromRecord(record: Record<string, unknown>, rowNumber: number): {
   if (type && !["skeet", "trap", "sporting"].includes(type)) issues.push({ row: rowNumber, field: "type", code: "invalid-enum", message: "Type must be skeet, trap, or sporting." });
   const highRib = parseBoolean(record.highRib);
   if (highRib === "invalid") issues.push({ row: rowNumber, field: "highRib", code: "invalid-boolean", message: "High-rib must be yes/no or true/false." });
+  const adjustableComb = parseBoolean(record.adjustableComb);
+  if (adjustableComb === "invalid") issues.push({ row: rowNumber, field: "adjustableComb", code: "invalid-boolean", message: "Adjustable comb must be yes/no or true/false." });
 
   if (issues.some((issue) => issue.field === "serialNumber" && issue.code !== "duplicate-serial")) return { issues };
   return {
@@ -203,6 +208,7 @@ function rowFromRecord(record: Record<string, unknown>, rowNumber: number): {
       barrelLength: String(record.barrelLength ?? "").trim() || undefined,
       lengthOfPull: String(record.lengthOfPull ?? "").trim() || undefined,
       handedness: String(record.handedness ?? "").trim() || undefined,
+      adjustableComb: adjustableComb === "invalid" ? undefined : adjustableComb,
       type: type as GunImportRow["type"],
       modelType: legacyModelType || undefined,
       highRib: highRib === "invalid" ? undefined : highRib,

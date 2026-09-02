@@ -2,6 +2,29 @@
 
 Production deployment and recovery instructions are in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
+## Deploying production
+
+To deploy the newest GitHub `main` revision to the existing Lightsail instance,
+run this from the repository root:
+
+```sh
+scripts/deploy-lightsail.sh --yes
+```
+
+The script verifies the AWS account's instance and static IP, confirms public
+health and SSH access, refuses a dirty tracked production checkout, preserves
+the server-only configuration, and then builds/releases in place. It never
+creates an instance, snapshot, or other AWS resource. See
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for recovery and credential rules.
+
+The server records the commit only after its rebuilt API has started and passed
+a local health check. That means a later run retries safely if a previous
+build was interrupted. Its build is also detached from the SSH session, so a
+closed terminal does not leave Docker tied to a dead stream. If a terminal is
+closed before the release completes, the deployment record remains unchanged
+and the next run safely retries it. It uses Docker's legacy builder on
+Lightsail because that server's BuildKit export has intermittently stalled.
+
 ## Production access
 
 - Production URL: `https://arms.dse-apps.com`

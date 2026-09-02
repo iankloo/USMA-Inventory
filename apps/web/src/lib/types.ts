@@ -10,7 +10,8 @@ export interface Gun {
   reportedSafe?: number | null;
   barrelLength: string;
   lengthOfPull: string;
-  handedness: "Right" | "Left" | "Ambidextrous";
+  handedness: "Right" | "Left" | "Neutral";
+  adjustableComb: boolean | null;
   type: GunType | null;
   highRib: boolean | null;
   status: GunStatus;
@@ -127,6 +128,7 @@ export interface ApiClient {
   unarchiveGun: (serial: string) => Promise<Gun>;
   updateLocation: (serial: string, input: { safe: number; slot: number }) => Promise<Gun>;
   assignCadet: (serial: string, cadetName: string) => Promise<Gun>;
+  assignFittedGun: (serial: string, input: { cadetName: string; safe: number; slot: number }) => Promise<Gun>;
   unassignCadet: (serial: string) => Promise<Gun>;
   checkoutGun: (serial: string, input: { personName: string; notes?: string }) => Promise<Gun>;
   sendToRepair: (serial: string, input: { vendor: string; reason: string; notes?: string; expectedReturn?: string }) => Promise<Gun>;
@@ -175,6 +177,7 @@ export interface CreateGunInput {
   barrelLength?: number;
   lengthOfPull?: number;
   handedness: "RIGHT" | "LEFT" | "AMBIDEXTROUS";
+  adjustableComb?: boolean | null;
   type?: "SKEET" | "TRAP" | "SPORTING" | null;
   highRib?: boolean | null;
   safe?: number;
@@ -188,6 +191,7 @@ export interface UpdateGunDetailsInput {
   barrelLength?: number | null;
   lengthOfPull?: number | null;
   handedness?: "RIGHT" | "LEFT" | "AMBIDEXTROUS" | null;
+  adjustableComb?: boolean | null;
   type?: "SKEET" | "TRAP" | "SPORTING" | null;
   highRib?: boolean | null;
 }
