@@ -831,7 +831,7 @@ function GunFitter({
         </div>
       </div>
       <section className="fitter-summary" aria-label="Assignable gun summary">
-        <div><strong>{assignableGuns.length}</strong><span>assignable guns</span></div>
+        <div><strong>{displayedGuns.length}</strong><span>assignable guns</span></div>
         <p>Showing <b>{ownerFilter === "Beretta" ? "Beretta-owned guns" : ownerFilter === "Beretta and DCA" ? "Beretta and DCA guns" : "all owners"}</b>. DCA guns are available only when you include them.</p>
       </section>
       <div className="fitter-filters" aria-label="Gun fitting filters">
