@@ -112,9 +112,11 @@ sudo git reset --hard "$target_commit"
 
 # Build first, while the currently running API remains available. The build is
 # detached from the SSH stream so it survives a terminal or agent disconnect.
+# The Lightsail Docker daemon has intermittently hung while BuildKit exports
+# its final image; the legacy builder avoids that failure mode for this image.
 build_log="$(sudo mktemp /tmp/arms-inventory-build.XXXXXX)"
 build_status="${build_log}.status"
-sudo sh -c 'cd "$1"; log="$2"; status="$3"; nohup sh -c "docker compose build api >\"$log\" 2>&1; printf \"%s\\n\" \"\$?\" >\"$status\"" </dev/null >/dev/null 2>&1 &' sh "$repository_dir" "$build_log" "$build_status"
+sudo sh -c 'cd "$1"; log="$2"; status="$3"; nohup sh -c "DOCKER_BUILDKIT=0 docker compose build api >\"$log\" 2>&1; printf \"%s\\n\" \"\$?\" >\"$status\"" </dev/null >/dev/null 2>&1 &' sh "$repository_dir" "$build_log" "$build_status"
 
 while [[ ! -f "$build_status" ]]; do
   sleep 2

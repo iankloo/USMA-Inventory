@@ -20,7 +20,9 @@ creates an instance, snapshot, or other AWS resource. See
 The server records the commit only after its rebuilt API has started and passed
 a local health check. That means a later run retries safely if a previous
 build was interrupted. Its build is also detached from the SSH session, so a
-closed terminal does not leave the release half-built.
+closed terminal does not leave the release half-built. It uses Docker's legacy
+builder on Lightsail because that server's BuildKit export has intermittently
+stalled.
 
 ## Production access
 

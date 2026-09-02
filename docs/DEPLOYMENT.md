@@ -74,6 +74,9 @@ been updated, and that must be retried rather than reported as deployed.
 The Docker image build is detached and polled through a per-run status file on
 the instance. A lost SSH session cannot leave Docker tied to a closed terminal;
 the script either proceeds after a completed build or prints its failure log.
+It intentionally uses Docker's legacy builder (`DOCKER_BUILDKIT=0`) because the
+current Lightsail Docker daemon intermittently stalls during BuildKit's final
+image export.
 
 Preflight:
 
