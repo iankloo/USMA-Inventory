@@ -58,7 +58,7 @@ Named account administrators manage the local account registry through `GET /api
 - `POST /api/audits/:id/finalize` — requires no unresolved snapshot items.
 - `POST /api/audits/:id/reconciliation` — body `{ sourceName, serials }`; attaches reviewed external serials after physical finalization.
 - `GET /api/audits` — persisted audits in descending start order, each with `{ id, name, status, startedAt, physicalFinalizedAt, completedAt, startedBy, itemCount, counts, reconciliation }`.
-- `POST /api/audits/:id/reconciliation/pdf/preview` — send the PDF as `application/pdf`; the worker extracts selectable-text candidates in memory and returns them for review. The request bytes are never persisted. Submit only the reviewed `{ sourceName, serials }` to the reconciliation endpoint.
+- `POST /api/audits/:id/reconciliation/pdf/preview` — send a PDF no larger than 10 MB as `application/pdf`; the worker extracts selectable-text candidates in memory and returns them for review. The request bytes are never persisted. Oversized requests return `413 UPLOAD_TOO_LARGE`. Submit only the reviewed `{ sourceName, serials }` to the reconciliation endpoint.
 - `GET /api/audits/:id/evidence.csv` — available after physical finalization and includes snapshot, scan, and reconciliation evidence.
 - `GET /api/audits/:id/evidence.pdf` — worker-generated human-readable PDF evidence with the same finalized snapshot and resolution data.
 
