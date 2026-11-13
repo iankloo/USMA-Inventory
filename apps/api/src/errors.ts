@@ -15,6 +15,9 @@ export function asHttpError(error: unknown): HttpError {
   if (typeof code === "string" && code.startsWith("ERR_J")) {
     return new HttpError(401, "Your sign-in token is invalid. Please sign in again.", "INVALID_IDENTITY");
   }
+  if (code === "FST_ERR_CTP_BODY_TOO_LARGE") {
+    return new HttpError(413, "Upload exceeds the allowed file size limit.", "UPLOAD_TOO_LARGE");
+  }
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
     const target = Array.isArray(error.meta?.target) ? error.meta.target.join(",") : String(error.meta?.target ?? "");
     if (target.includes("nameKey")) return new HttpError(409, "An audit with this name already exists", "AUDIT_NAME_EXISTS");

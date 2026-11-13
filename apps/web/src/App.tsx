@@ -52,6 +52,7 @@ import type {
 import "./styles.css";
 
 const todayLabel = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(new Date()).toUpperCase();
+const PDF_RECONCILIATION_MAX_BYTES = 10 * 1024 * 1024;
 
 // Vitest loads the workspace's .env.local too. Keep component tests deterministic
 // and browser-independent without changing the explicit real-API local/prod modes.
@@ -1792,6 +1793,7 @@ function AuditPage({
   const [reconciliation, setReconciliation] =
     useState<ReconciliationResult | null>(null);
   const [finalizeError, setFinalizeError] = useState("");
+  const [uploadError, setUploadError] = useState("");
   const [finalizing, setFinalizing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [reviewFile, setReviewFile] = useState<{
@@ -1858,6 +1860,11 @@ function AuditPage({
     inputRef.current?.focus();
   };
   const prepareUpload = async (file: File) => {
+    setUploadError("");
+    if (file.size > PDF_RECONCILIATION_MAX_BYTES) {
+      setUploadError("PDF reports must be 10 MB or smaller.");
+      return;
+    }
     setUploading(true);
     try {
       const preview = await client.previewReconciliationPdf(audit.id, file);
@@ -1870,6 +1877,8 @@ function AuditPage({
         pageCount: preview.pageCount,
       });
       setReviewedSerials(preview.serials.join("\n"));
+    } catch (caught) {
+      setUploadError(caught instanceof Error ? caught.message : "Unable to read this PDF report.");
     } finally {
       setUploading(false);
     }
@@ -1884,6 +1893,7 @@ function AuditPage({
           .filter(Boolean),
       ),
     ];
+    setUploadError("");
     setUploading(true);
     try {
       setReconciliation(
@@ -1893,6 +1903,8 @@ function AuditPage({
         }),
       );
       setAudit({ ...audit, reconciliation: "Reconciled", status: "Complete" });
+    } catch (caught) {
+      setUploadError(caught instanceof Error ? caught.message : "Unable to attach the reviewed serial set.");
     } finally {
       setUploading(false);
     }
@@ -2148,6 +2160,7 @@ function AuditPage({
                   Upload the report from the monitoring group after the physical
                   count. The source PDF is processed and discarded.
                 </p>
+                {uploadError && <div className="scan-message error" role="alert">{uploadError}</div>}
                 {reviewFile ? (
                   <div className="reconciliation-review">
                     <p>
