@@ -44,7 +44,7 @@ test("PDF reconciliation accepts reports up to the advertised 10 MB limit", asyn
       };
     }
   });
-  const payload = Buffer.alloc(2 * 1024 * 1024, 1);
+  const payload = Buffer.alloc(10 * 1024 * 1024, 1);
   const response = await app.inject({
     method: "POST",
     url: "/api/audits/audit-1/reconciliation/pdf/preview",
