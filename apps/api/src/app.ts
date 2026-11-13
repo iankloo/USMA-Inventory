@@ -24,6 +24,8 @@ export interface AppOptions {
   extractPdf?: typeof extractPdfSerials;
 }
 
+const PDF_RECONCILIATION_MAX_BYTES = 10 * 1024 * 1024;
+
 function requireActor(request: FastifyRequest): Actor {
   if (!request.actor) throw new HttpError(401, "Authentication required", "AUTHENTICATION_REQUIRED");
   return request.actor;
@@ -886,7 +888,7 @@ export async function createApp(options: AppOptions): Promise<FastifyInstance> {
   // The worker extracts selectable text in-memory and returns reviewable candidates. The API
   // intentionally does not persist this request body; the UI submits the reviewed serial set
   // to /reconciliation afterward, which is the only data retained by the audit.
-  app.post("/api/audits/:id/reconciliation/pdf/preview", async (request, reply) => {
+  app.post("/api/audits/:id/reconciliation/pdf/preview", { bodyLimit: PDF_RECONCILIATION_MAX_BYTES }, async (request, reply) => {
     try {
       requireActor(request);
       const id = (request.params as { id: string }).id;

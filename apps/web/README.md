@@ -72,7 +72,7 @@ All routes except `/healthz` require `Authorization: Bearer <Cognito access toke
 | POST   | `/api/audits/:id/items/:serial/repair-verify` | `{ note }`                                                       | resolved audit item                                                                                  |
 | POST   | `/api/audits/:id/items/:serial/exception`     | `{ reason, note }`                                               | resolved audit item                                                                                  |
 | POST   | `/api/audits/:id/finalize`                    | —                                                                | physical-finalized audit                                                                             |
-| POST   | `/api/audits/:id/reconciliation/pdf/preview`  | raw PDF body with `Content-Type: application/pdf`                | server-extracted `{ serials, duplicates, invalidTokens, pageCount, warnings, sourceBytesDiscarded }` |
+| POST   | `/api/audits/:id/reconciliation/pdf/preview`  | raw PDF body up to 10 MB with `Content-Type: application/pdf`    | server-extracted `{ serials, duplicates, invalidTokens, pageCount, warnings, sourceBytesDiscarded }` |
 | POST   | `/api/audits/:id/reconciliation`              | `{ sourceName, serials }`                                        | reconciliation, summary, completed audit                                                             |
 | GET    | `/api/audits/:id/evidence.csv`                | —                                                                | downloadable CSV evidence                                                                            |
 | GET    | `/api/audits/:id/evidence.pdf`                | —                                                                | downloadable human-readable PDF evidence                                                             |
@@ -83,7 +83,7 @@ The backend's gun row uses `serialNumber`, `state` (`STORED`, `CHECKED_OUT`, `RE
 
 `AuditSummary` includes `id`, `label`, `startedAt`, `startedBy`, `expected`, `resolved`, `scanned`, `repairVerified`, `exceptions`, `status`, and optional `reconciliation`. The server remains the source of truth for counts and lifecycle transitions; the demo adapter only approximates those updates.
 
-`ReconciliationResult` is derived from the API's `summary` and `reconciliation.serials` rows. The browser sends the selected PDF transiently to `/reconciliation/pdf/preview` with `Content-Type: application/pdf`. The server worker extracts selectable-text candidates and discards source bytes. The UI presents those candidates, duplicates, invalid tokens, and warnings for review, then sends only `{ sourceName, serials }` to the reconciliation endpoint.
+`ReconciliationResult` is derived from the API's `summary` and `reconciliation.serials` rows. The browser accepts reconciliation PDFs up to 10 MB and sends the selected file transiently to `/reconciliation/pdf/preview` with `Content-Type: application/pdf`. Larger files are rejected before upload with a visible error. The server worker extracts selectable-text candidates and discards source bytes. The UI presents those candidates, duplicates, invalid tokens, and warnings for review, then sends only `{ sourceName, serials }` to the reconciliation endpoint.
 
 ## UX notes
 

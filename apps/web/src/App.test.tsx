@@ -355,6 +355,25 @@ describe('armory workflow', () => {
     expect(await screen.findByRole('textbox', { name: /reviewed serial numbers/i })).toBeInTheDocument()
   })
 
+  it('explains why an oversized PDF reconciliation report was rejected', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: /start monthly audit/i }))
+    await user.type(screen.getByRole('textbox', { name: /audit name/i }), 'Oversized PDF test')
+    await user.click(screen.getByRole('button', { name: /^start audit$/i }))
+    const scan = await screen.findByRole('textbox', { name: /scan qr code/i })
+    for (const serial of ['WP-24-00187', 'WP-24-00204', 'WP-23-00091', 'WP-24-00312', 'WP-22-00106']) {
+      await user.type(scan, serial)
+      await user.click(screen.getByRole('button', { name: /^scan$/i }))
+      await screen.findByText(new RegExp(`${serial} verified in current inventory`, 'i'))
+    }
+    await user.click(screen.getByRole('button', { name: /finalize physical count/i }))
+    const upload = await screen.findByLabelText(/upload pdf report/i)
+    await user.upload(upload, new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'too-large.pdf', { type: 'application/pdf' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/10 mb/i)
+    expect(screen.queryByRole('textbox', { name: /reviewed serial numbers/i })).not.toBeInTheDocument()
+  })
+
   it('archives a gun with a justification and exposes it in the dedicated archived area', async () => {
     const user = userEvent.setup()
     render(<App />)
